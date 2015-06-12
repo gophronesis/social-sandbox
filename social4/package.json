@@ -1,16 +1,26 @@
 {
-  "name": "rickshaw-socket.io",
-  "version": "0.0.1",
-  "description": "Rickshaw socket.io support",
-  "main": "app.js",
-  "private": true,
-  "scripts": {
-    "start": "node app.js"
-  },
+  "name": "social4",
+  "version": "1.0.0",
+  "description": "# Usage",
+  "main": "server.js",
   "dependencies": {
-    "express": "3.3.5",
-    "socket.io": "~0.9.16"
+    "express": "^3.3.5",
+    "kafka-node": "^0.2.27",
+    "socket.io": "^0.9.17"
   },
-  "author": "Alex Williams, Unscramble <license@unscramble.jp>",
-  "license": "MIT"
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phronesis-mnemosyne/social-sandbox.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/phronesis-mnemosyne/social-sandbox/issues"
+  },
+  "homepage": "https://github.com/phronesis-mnemosyne/social-sandbox"
 }

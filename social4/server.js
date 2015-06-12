@@ -4,7 +4,7 @@ var express = require('express'),
          io = require('socket.io').listen(server, { log : false }),
        path = require('path'),
           _ = require('underscore')._,
-    twitter = require('ntwitter'),
+//    twitter = require('ntwitter'),
       kafka = require('kafka-node');
 
 var config = {
@@ -102,7 +102,7 @@ io.sockets.on('connection', function(socket) {
 
 
 // Serve static content
-app.use('/', express.static('../social3'));
+app.use('/', express.static(__dirname));
 
 // Start server
 server.listen(3000, function() {
