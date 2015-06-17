@@ -44,6 +44,8 @@ function addText(d) {
   $('#created_time').text(new Date(parseInt(d.created_time) * 1000));
 }
 
+
+
 function raw_handler(data) {
   try {
     _.map(data, function(d) {
@@ -81,9 +83,15 @@ function proc_handler(proc) {
   });
 }
 
+//var count;
+//function count_handler(count){
+   
+//}
+
 var socket = io.connect('http://localhost');
 socket.on('raw', raw_handler);
 socket.on('proc', proc_handler);
+//socket.on('count',count_handler);
 
 var fill = d3.scale.category20();
 //what range of font sizes do we want, we will scale the word counts
@@ -136,21 +144,10 @@ Rickshaw.Graph.Socketio.Static = Rickshaw.Class.create( Rickshaw.Graph.Socketio,
 request: function() {
   var socket = io.connect(this.dataURL);
   thisData = this;
-  socket.on('twitter', function (data) {
-    //console.log("Got some fancy Websocket data: ");
-    if(data['wc'].length>0){
-       d3.layout.cloud().size([300, 300])
-    .words(data['wc'])
-    .padding(5)
-    .rotate(function() { return ~~(Math.random() * 2) * 0; })
-    .font("Impact")
-    .fontSize(function(d) { return d.size; })
-    .on("end", draw)
-    .start();
-     }
-
-    console.log(data['ts']);
-    thisData.success(data['ts']);
+  socket.on('count', function (data) {
+    console.log("Got some fancy Websocket data: ");
+    console.log(data);
+    thisData.success(data);
   });
 }
 } );
