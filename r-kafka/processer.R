@@ -1,8 +1,10 @@
 config = list(
-	# consumer_ip    = "10.3.2.75:2181",
-	# producer_ip    = "10.3.2.75:9092",
-	consumer_ip    = '10.202.20.70:2181',
-	producer_ip    = "10.202.20.70:9092",
+	# consumer_ip    = "10.3.2.75:2181", # MEMEX
+	# producer_ip    = "10.3.2.75:9092", # MEMEX
+
+	consumer_ip = "10.202.20.229:2181", # Host Machine (MBP from ifconfig)
+	producer_ip = "10.202.20.229:9092", # Host Machine (MDP from ifconfig)
+	
 	consumer_topic = 'throwaway',
 	producer_topic = 'instagram_fake'
 )
@@ -139,7 +141,6 @@ make_hashtag <- function(x) {
 
 # ----
 # Hooking up to queue
-
 
 con  = rkafka.createConsumer(config$consumer_ip, config$consumer_topic, groupId = 'processor-group', autoCommitInterval = '1000')
 prod = rkafka.createProducer(config$producer_ip)

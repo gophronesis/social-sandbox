@@ -12,15 +12,20 @@ from datetime import datetime
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan
 from kafka import SimpleProducer, KafkaClient
+from kafka.common import LeaderNotAvailableError
 
 config = {
+	# Elasticsearch
 	"HOSTNAME" : "localhost",
 	"HOSTPORT" : 9205,
+	
 	"INDEX"    : 'instagram',
 	"DOC_TYPE" : 'baltimore',
-	# 'KAFKA'    : "10.3.2.75:9092",
+	
 	'KAFKA'    : "localhost:9092",
+	
 	'TOPIC'    : 'throwaway',
+	
 	'QUERY'    : {
 		"query" : {
 			"range" : {
@@ -43,6 +48,10 @@ print 'connecting...'
 kafka     = KafkaClient(config['KAFKA'])
 producer  = SimpleProducer(kafka)
 es_client = Elasticsearch([{'host' : config['HOSTNAME'], 'port' : config['HOSTPORT']}])
+print 'connected!'
+
+kafka.ensure_topic_exists(config['TOPIC'])
+kafka.ensure_topic_exists('instagram_fake')
 
 def run():
 	t       = -1

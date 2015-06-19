@@ -46,7 +46,11 @@ def send(x):
     kafka     = KafkaClient("localhost:9092")
     producer  = SimpleProducer(kafka)
     for record in x:
-        producer.send_messages("instacounts",str(record))
+        try:
+            producer.send_messages("instacounts",str(record))
+        except:
+            time.sleep(1)
+            producer.send_messages('instacounts', json.dumps([a]))
 
 def returnText(x):
     return ' '.join([ y['caption']['text'].lower() for y in json.loads(x[1]) if y.get('caption') and y['caption'].get('text') and y['caption']['text'].strip() != ''])
@@ -56,14 +60,15 @@ if __name__ == "__main__":
         print("Usage: kafka_wordcount.py <zk> <topic>", file=sys.stderr)
         exit(-1)
 
-    kafka     = KafkaClient("localhost:9092")
-    producer  = SimpleProducer(kafka)
+    kafka    KafkaClient("localhost:9092")
+    producer = SimpleProducer(kafka)
 
-    sc = SparkContext(appName="PythonStreamingKafkaWordCount")
-    ssc = StreamingContext(sc, 120)
+    sc  = SparkContext(appName="PythonStreamingKafkaWordCount")
+    ssc = StreamingContext(sc, 1)
 
     zkQuorum, topic = sys.argv[1:]
     kvs = KafkaUtils.createStream(ssc, zkQuorum, "spark-streaming-consumer", {topic: 1})
+    print kvs
     lines = kvs.map(returnText)
     #count = lines.reduce(lambda a,b: a+b)
     counts = lines.flatMap(lambda line: line.replace('#',' ').split(" ")) \
@@ -72,7 +77,6 @@ if __name__ == "__main__":
     producer.send_messages("instacounts","yo")
     counts.pprint()
     counts.foreachRDD(lambda rdd: rdd.foreachPartition(send))
-    
 
     ssc.start()
     ssc.awaitTermination()

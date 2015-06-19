@@ -1,11 +1,11 @@
 require(fpc)
 require(kernlab)
+require(colorout)
 
 clean <- function(df) {
 	df$loc.longitude <- as.numeric(df$loc.longitude)
 	df$loc.latitude  <- as.numeric(df$loc.latitude)
-	df$time          <- as.Date(as.numeric(df$time) / (60 * 60 * 24), 
-		origin = '1970-01-01')
+	df$time <- as.Date(as.numeric(df$time) / (60 * 60 * 24), origin = '1970-01-01')
 
 	df <- df[df$loc.latitude > 39.236 & df$loc.latitude < 39.373,]
 	df <- df[df$loc.longitude > -76.72 & df$loc.longitude < -76.6,]
