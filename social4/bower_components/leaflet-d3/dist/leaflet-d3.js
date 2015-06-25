@@ -411,6 +411,7 @@
 		/*
 		 * Method by which to "add" pings
 		 */
+		PING_COLOR : 'red',
 		ping : function(data) {
 			// Lazy init the data array
 			if(null == this._data) this._data = [];
@@ -427,10 +428,12 @@
 				ts: Date.now(),
 				nts: 0
 			};
+			
 			circle.c = this._container.append('circle').attr('class', 'ping')
 				.attr('cx', circle.x)
 				.attr('cy', circle.y)
-				.attr('r', this.radiusScale().range()[0]);
+				.attr('r', this.radiusScale().range()[0])
+				.attr('fill', this.PING_COLOR);
 
 			this._data.push(circle);
 

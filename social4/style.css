@@ -18,7 +18,6 @@
   circle.ping {
       stroke       : #000;
       stroke-width : 0.5px;
-      fill         : red;
   }
 
   .container .text-muted {

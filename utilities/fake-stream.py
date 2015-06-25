@@ -50,8 +50,10 @@ producer  = SimpleProducer(kafka)
 es_client = Elasticsearch([{'host' : config['HOSTNAME'], 'port' : config['HOSTPORT']}])
 print 'connected!'
 
+# Should link this to config file
 kafka.ensure_topic_exists(config['TOPIC'])
 kafka.ensure_topic_exists('instagram_fake')
+kafka.ensure_topic_exists('instacounts')
 
 def run():
 	t       = -1

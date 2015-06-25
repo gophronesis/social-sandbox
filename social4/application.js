@@ -1,6 +1,6 @@
 // setup map and add layers
 var baseLayer = L.tileLayer('https://{s}.tiles.mapbox.com/v3/cwhong.map-hziyh867/{z}/{x}/{y}.png', {
-  attribution : "Team Graham",
+  attribution : "",
   maxZoom     : 18
 });
 
@@ -10,6 +10,7 @@ var map = new L.Map('map', {
   layers : [baseLayer]
 });
 
+// Basic ping layer
 var pingLayer = L.pingLayer({
     lng: function(d){ return d[0]; },
     lat: function(d){ return d[1]; },
@@ -19,56 +20,72 @@ var pingLayer = L.pingLayer({
         fps: 8
     }
 }).addTo(map);
+
 pingLayer.radiusScale().range([0, 5]);
 pingLayer.opacityScale().range([1, 0]);
 
-function addMarker(d) {
-  pingLayer.ping([d.location.longitude, d.location.latitude]);
-}
+// Additional ping layer
+var pingLayer2 = L.pingLayer({
+    lng: function(d){ console.log('lng', d[0]); return d[0]; },
+    lat: function(d){ return d[1]; },
+    duration: 3000,
+    efficient: {
+        enabled: false,
+        fps: 8
+    }
+}).addTo(map);
 
-function addText(d) {
-  $('#created_time').text(new Date(parseInt(d.created_time) * 1000));
-}
+pingLayer2.radiusScale().range([0, 20]);
+pingLayer2.opacityScale().range([0, .5]);
+pingLayer2.PING_COLOR = 'yellow';
 
 function raw_handler(data) {
   try {
     _.map(data, function(d) {
-      addMarker(d);
-      addText(d);
+      // Ping on layer
+      pingLayer.ping([d.location.longitude, d.location.latitude]);
+      
+      // Add text
+      $('#created_time').text(new Date(parseInt(d.created_time) * 1000));
     });
   } catch(e) {
     console.log('cannot add point!');
   }
 };
 
-function proc_handler(proc) {
-  console.log('proc', proc);
-  _.map(proc, function(v) {
-      // Add rectangle
-      var rect = L.rectangle([
-        [v['lat']['min'], v['lon']['max']], 
-        [v['lat']['max'], v['lon']['min']]
-      ], {
-        color  : "yellow",
-        stroke : false
-      })
+// function processed_handler(proc) {
+//   console.log('processed message', proc);
+//   _.map(proc, function(v) {
+//       // Add rectangle
+//       var rect = L.rectangle([
+//         [v['lat']['min'], v['lon']['max']], 
+//         [v['lat']['max'], v['lon']['min']]
+//       ], {
+//         color  : "yellow",
+//         stroke : false
+//       })
       
-      // Add popup
-      var str = v['posts'] + '<br>'
-      if(v['hashtags']) {
-        _.map(_.flatten([v['hashtags']]), function(h) {
-          str += h + '<br>'
-        })
-      }
-      rect.bindPopup(str)
+//       // Add popup
+//       var str = v['posts'] + '<br>'
+//       if(v['hashtags']) {
+//         _.map(_.flatten([v['hashtags']]), function(h) {
+//           str += h + '<br>'
+//         })
+//       }
+//       rect.bindPopup(str)
       
-      rect.addTo(map);  
-  });
+//       rect.addTo(map);  
+//   });
+// }
+
+function processed_handler(data) {
+  console.log('processed data', data.loc);
+  pingLayer2.ping(data.loc);
 }
 
 var socket = io.connect('http://localhost');
 socket.on('raw', raw_handler);
-socket.on('proc', proc_handler);
+socket.on('processed', processed_handler);
 
 // var fill = d3.scale.category20();
 // //what range of font sizes do we want, we will scale the word counts
@@ -149,3 +166,8 @@ socket.on('proc', proc_handler);
 // dataURL: "http://localhost",
 // onData: function(d) {Rickshaw.Series.zeroFill(d); return d }
 // } );
+
+
+window.onbeforeunload = function(e) {
+  socket.disconnect();
+};
