@@ -1,11 +1,19 @@
 var express = require('express'),
         app = express(),
      server = require('http').createServer(app),
-         io = require('socket.io').listen(server, { log : false }),
+         io = require('socket.io').listen(server, {
+            origins:'http://localhost:* localhost:*',
+            log : false
+        }),
        path = require('path'),
           _ = require('underscore')._,
       kafka = require('kafka-node'),
     pshell  = require('python-shell');
+
+app.all('*', function(req, res, next) {
+    res.header('Access-Control-Allow-Origin', '*');
+    next();
+});
 
 // Load configuration
 var config = require('fs').readFileSync('../config.json', 'utf-8');
@@ -20,7 +28,7 @@ var Consumer = kafka.Consumer;
     ], { autoCommit: true, fetchMaxBytes: 1024 * 100000} );
 
 // Serve static content
-app.use('/', express.static(__dirname));
+// app.use('/', express.static(__dirname));
 
 // Each time someone connects, execute
 io.sockets.on('connection', function(socket) {
