@@ -42,12 +42,21 @@ pingLayer2.PING_COLOR = 'yellow';
 function raw_handler(data) {
   try {
     _.map(data, function(d) {
+      console.log(d)
       // Ping on layer
       pingLayer.ping([d.location.longitude, d.location.latitude]);
       
       // Add text
       $('#created_time').text(new Date(parseInt(d.created_time) * 1000));
-    });
+
+      // Simple streaming sidebar
+      $('.streaming-sidebar').prepend('<div>' + d.user.username + ' @ ' + d.created_time + '</div>')
+      if($('.streaming-sidebar').children().length > 40) {
+        $('.streaming-sidebar div').last().remove();
+      }
+
+    });    
+    
   } catch(e) {
     console.log('cannot add point!');
   }
