@@ -1,0 +1,15 @@
+{
+  "KAFKA_HOST" : "localhost",
+  "KAFKA"      : "localhost:2181",
+  "RAW_TOPIC"  : "throwaway",
+  "PROC_TOPIC" : "instacounts",
+  
+  "ES_HOST"  : "localhost",
+  "ES_PORT"  : 9205,
+  "ES_INDEX" : "instagram",
+  "ES_TYPE"  : "baltimore",
+  
+  "START_TIME" : "2015-04-27 00:00:00",
+  "END_TIME"   : "2015-04-28 00:00:00",
+  "SPEED"      : 7500
+}
