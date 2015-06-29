@@ -1,8 +1,8 @@
   body {
     height         : 100%;
     width          : 100%;
-    padding-top    : 50px;
-    padding-bottom : 60px;
+    /*padding-top    : 50px;
+    padding-bottom : 60px;*/
   }
 
 
@@ -12,7 +12,7 @@
     bottom:0; 
     width:100%;
     z-index: 1;
-    height:100%
+    height:90%
   }
 
   circle.ping {
@@ -32,3 +32,29 @@
     border-radius : 50%;
   }
 
+
+.axis {
+  fill: gray;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+.axis .halo {
+  stroke: gray;
+  stroke-width: 4px;
+  stroke-linecap: round;
+}
+
+.slider .handle path {
+  stroke: white;
+  stroke-width: 3px;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.slider .handle text {
+  fill: white;
+  text-align: center;
+  font-size: 18px;
+}

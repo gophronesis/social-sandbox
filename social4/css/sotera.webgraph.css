@@ -1,0 +1,63 @@
+html, body, #graph {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+ padding-top: 0px;
+}
+
+#control-panel {
+  background-color: lightgray;
+}
+    
+#graph {
+ position: fixed;
+ top: 0px;
+}
+    
+    
+.node {
+  stroke: #fff;
+  stroke-width: 0px;
+}
+
+
+.link {
+  fill: none;
+  stroke: #bbb;
+}
+
+    
+.result_thead, .result_tbody { display: block; }
+
+
+.nomargin {
+    margin: 0;
+}
+
+.boldlink {
+    fill: none;
+    stroke: #84a;
+    stroke-width: 1px;
+    cursor: pointer;
+}
+
+.commentlink {
+    fill: none;
+    stroke: #FFFF66;
+    stroke-width: 1px;
+    cursor: pointer;
+}
+
+
+
+
+.highlighed_verts_dialog {
+    max-height: 300px;
+    overflow-y: scroll;
+}
+
+
+
+

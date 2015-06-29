@@ -7,10 +7,14 @@ var express = require('express'),
 //    twitter = require('ntwitter'),
       kafka = require('kafka-node');
 
+var request = require('request');
+var url = require('url');
+
 var config = {
   'KAFKA'      : 'localhost:2181',
-  'RAW_TOPIC'  : 'throwaway',
-  'PROC_TOPIC' : 'instagram_fake'
+  'RAW_TOPIC'  : 'instagram',
+  'PROC_TOPIC' : 'instagram_fake',
+  'THROW_AWAY' : 'throwaway'
 }
 
 // Kafka consumer
@@ -18,7 +22,8 @@ var Consumer = kafka.Consumer;
     client   = new kafka.Client(config['KAFKA']),
     consumer = new Consumer( client, [ 
       { topic: config['RAW_TOPIC'] },
-      { topic: config['PROC_TOPIC'] }
+      { topic: config['PROC_TOPIC'] },
+      { topic: config['THROW_AWAY'] }
     ], { autoCommit: true, fetchMaxBytes: 1024 * 100000} );
 
 // Twitter consumer
@@ -50,7 +55,12 @@ io.sockets.on('connection', function(socket) {
               socket.emit('proc', JSON.parse(x));
            });
            
-        }
+        } else if(message.topic == config['THROW_AWAY']) {
+          _([message.value]).flatten()
+           .map(function(x) {
+              socket.emit('raw2', JSON.parse(x));
+           });
+	}
         
       } catch(e) {
         console.log('>>> cannot parse json >>> ', e);
@@ -103,6 +113,16 @@ io.sockets.on('connection', function(socket) {
 
 // Serve static content
 app.use('/', express.static(__dirname));
+
+app.get('/service', function(req, res) {
+var url_parts = url.parse(req.url, true);
+//console.log(url_parts);
+request('http://10.3.2.75:8787/services/pictures/search?lat=' + url_parts.query.lat + '&lon=' + url_parts.query.lon, function(error, response, body) {
+//console.log(body);
+res.send(response.body);
+})
+});
+
 
 // Start server
 server.listen(3000, function() {

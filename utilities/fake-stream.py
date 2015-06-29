@@ -14,8 +14,8 @@ from elasticsearch.helpers import scan
 from kafka import SimpleProducer, KafkaClient
 
 config = {
-	"HOSTNAME" : "localhost",
-	"HOSTPORT" : 9205,
+	"HOSTNAME" : "10.1.94.156",
+	"HOSTPORT" : 9200,
 	"INDEX"    : 'instagram',
 	"DOC_TYPE" : 'baltimore',
 	# 'KAFKA'    : "10.3.2.75:9092",

@@ -1,0 +1,72 @@
+.div{
+  vertical-align: top;
+}
+
+#node_graph{
+  background-color: black;
+  width: 100%;
+}
+
+#map { height: 500px; }
+
+#viz{
+    max-height: 500px;
+    overflow-y:scroll;
+}
+
+#chart {
+  position: relative;
+  left: 40px;
+}
+
+#y_axis {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+}
+
+#x_axis {
+  position: relative;
+  left: 40px;
+  height: 40px;
+}
+
+.extent {
+        stroke: #fff;
+        fill-opacity: .125;
+        shape-rendering: crispEdges;
+    }
+
+    .brush .extent {
+        fill-opacity: .125;
+        shape-rendering: crispEdges;
+    }
+
+    .chart rect {
+        fill: steelblue;
+    }
+
+    .chart text {
+        top: 50px;
+        fill: white;
+        font: 10px sans-serif;
+        text-anchor: end;
+    }
+
+    .axis text {
+        font: 10px sans-serif;
+    }
+
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
+    .chosen-container .chosen-results {
+        max-height: 120px;
+        overflow-y: auto;
+    }
+

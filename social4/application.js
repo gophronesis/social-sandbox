@@ -1,3 +1,10 @@
+var imageHash = {};
+
+var LeafIcon = L.Icon.extend({
+    options: {
+        iconSize:[50, 50],
+    }
+});
 
 var baseLayer = L.tileLayer('https://{s}.tiles.mapbox.com/v3/cwhong.map-hziyh867/{z}/{x}/{y}.png', {
   attribution : "Team Graham",
@@ -24,6 +31,26 @@ var pingLayer = L.pingLayer({
 pingLayer.radiusScale().range([0, 5]);
 pingLayer.opacityScale().range([1, 0]);
 
+var drawnItems = new L.FeatureGroup();
+map.addLayer(drawnItems);
+var drawControl = new L.Control.Draw({
+    edit: {
+        featureGroup: drawnItems
+    }
+});
+map.addControl(drawControl);
+
+map.on('draw:created', function (e) {
+    var type = e.layerType,
+        layer = e.layer;
+
+    if (type === 'marker') {
+        // Do marker specific actions
+    }
+    console.log(layer.getLatLngs());
+    // Do whatever else you need to. (save to db, add to map etc)
+    map.addLayer(layer);
+});
 // Markers on the map
 var cssIcon = L.divIcon({
   className : 'marker',
@@ -38,7 +65,17 @@ function addMarker(d) {
   // $('.marker').fadeOut(10000, function() {
   //   map.removeLayer(marker);
   // });
-  pingLayer.ping([d.location.longitude, d.location.latitude]);
+  //pingLayer.ping([d.location.longitude, d.location.latitude]);
+  var m = L.marker([d.location.latitude, d.location.longitude], {icon: new LeafIcon({iconUrl: d.images.low_resolution.url,id:d.id})});
+  m.addTo(map);
+  setTimeout(function(){ map.removeLayer(m);},600000);
+  imageHash[d.images.low_resolution.url] = d;
+  d3.select("img[src=\"" +d.images.low_resolution.url + "\"]").transition()
+        .duration(600000)
+        .style("opacity", 0);
+ d3.selectAll(".leaflet-marker-icon").on("mouseover",function(d){d3.select(this).style("width","150px").style("height","150px")}).on("mouseout",function(d){d3.select(this).style("width","50px").style("height","50px")});
+ d3.selectAll(".leaflet-marker-icon").on("click",function(d){window.open(imageHash[this.src].link, '_blank');});
+
 }
 function addText(d) {
   $('#created_time').text(new Date(parseInt(d.created_time) * 1000));
@@ -81,7 +118,7 @@ function proc_handler(proc) {
   });
 }
 
-var socket = io.connect('http://localhost');
+var socket = io.connect('http://10.3.2.75:3000/');
 socket.on('raw', raw_handler);
 socket.on('proc', proc_handler);
 
@@ -89,7 +126,7 @@ var fill = d3.scale.category20();
 //what range of font sizes do we want, we will scale the word counts
 var fontSize = d3.scale.log().range([10, 90]);
 //create my cloud object
-var mycloud = d3.layout.cloud().size([300, 300])
+/*var mycloud = d3.layout.cloud().size([300, 300])
       .words([])
       .padding(50)
       .rotate(function() { return ~~(Math.random() * 2) * 90; })
@@ -97,7 +134,7 @@ var mycloud = d3.layout.cloud().size([300, 300])
       .font("Impact")
       .fontSize(function(d) { return fontSize(d.size); })
       .on("end", draw)
-
+*/
 //render the cloud with animations
 function draw(words) {
   //fade existing tag cloud out
@@ -155,7 +192,7 @@ request: function() {
 }
 } );
 
-var socketioGraph = new Rickshaw.Graph.Socketio.Static( {
+/*var socketioGraph = new Rickshaw.Graph.Socketio.Static( {
 element: $('#chart_container')[0],
 width: 400,
 height: 200,
@@ -164,3 +201,4 @@ min: 'auto',
 dataURL: "http://localhost",
 onData: function(d) {Rickshaw.Series.zeroFill(d); return d }
 } );
+*/

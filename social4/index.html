@@ -18,7 +18,7 @@
 	<script src="node_modules/d3-cloud/d3.layout.cloud.js"></script>
 	<script src="node_modules/rickshaw/rickshaw.js"></script>
   <script src="http://underscorejs.org/underscore.js"></script>
-    
+  <script src="node_modules/leaflet-draw/dist/leaflet.draw.js"></script>
   <!-- <script>
     $(function() {
       $( "#chart_container" ).draggable();
@@ -28,6 +28,7 @@
    -->
    
      <link type="text/css" rel="stylesheet" href="style.css"/>
+     <link type="text/css" rel="stylesheet" href="node_modules/leaflet-draw/dist/leaflet.draw.css"/>
    
 </head>
 
@@ -38,10 +39,10 @@
       <div class="navbar-header">
         <span class="navbar-brand">StreamingSocialSandbox</span>
       </div>
+      <!--<div id="slider">
+      </div>-->
       <div>
-        <ul>
           <span id="created_time" class="pull-right" style="color:white;"> </span>
-        </ul>
       </div>
     </div>
   </div>
@@ -55,11 +56,10 @@
           <div id="chart2"></div>
   </div>
    -->
-
-  <div id="map"></div>
+    <div id="map"></div>
   
   <script src="application.js"></script>
-
+  <script src="slider.js"></script>
 
   
 </body>

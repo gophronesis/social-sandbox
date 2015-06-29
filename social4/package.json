@@ -5,8 +5,13 @@
   "main": "server.js",
   "dependencies": {
     "express": "^3.3.5",
+    "http": "0.0.0",
     "kafka-node": "^0.2.27",
-    "socket.io": "^0.9.17"
+    "path": "^0.11.14",
+    "request": "^2.58.0",
+    "socket.io": "^0.9.17",
+    "underscore": "^1.8.3",
+    "url": "^0.10.3"
   },
   "devDependencies": {},
   "scripts": {
