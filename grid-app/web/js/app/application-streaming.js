@@ -77,11 +77,11 @@ $(document).ready(function() {
 	
 	var grid = init_grid(collection)
 	
-	var ts = init_line()
+	// var ts = init_line()
 	
 	function reset() {
 		reset_grid(grid);
-		reset_line(ts);
+		// reset_line(ts);
 	}
 	
 	reset();
@@ -93,6 +93,7 @@ $(document).ready(function() {
 	// ----- Ping Layer ------
 	// Seems like there's no Kafka right now
 	var socket = io.connect('http://localhost:3000/');
+	
 	socket.on('raw', raw_handler);
 	function raw_handler(data) {
 	  try {
@@ -151,7 +152,7 @@ $(document).ready(function() {
 
 
 	// ------ Graph --------	
-	function init_line() {
+	function draw_line(data) {
 		var w = $('.bottom-bar').width(),
 		    h = $('.bottom-bar').height();
 
@@ -159,7 +160,8 @@ $(document).ready(function() {
 		    width  = w - margin.left - margin.right,
 		    height = h - margin.top - margin.bottom;
 
-		var parseDate = d3.time.format("%d-%b-%y").parse;
+		var parseDate = d3.time.format("%Y-%m-%dT%H:%M:%S.000Z").parse;
+		// var parseDate = d3.time.format("%d-%b-%y").parse;
 
 		var x = d3.time.scale()
 		    .range([0, width]);
@@ -179,52 +181,42 @@ $(document).ready(function() {
 		    .x(function(d) { return x(d.date); })
 		    .y(function(d) { return y(d.close); });
 
-		var svg = d3.select(".bottom-bar").append("svg")
+		var svg = d3.select(".bottom-bar").append("svg").attr("id","the_SVG_ID")
 		    .attr("width", width + margin.left + margin.right)
 		    .attr("height", height + margin.top + margin.bottom)
 		  .append("g")
 		    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-		out = {
-			svg : svg,
-			path : path
-		}
-
-		d3.tsv("data.tsv", function(error, data) {
-		  
-		  if (error) throw error;
-
-			out['line_data'] = data;
-
-		  data.forEach(function(d) {
-		    d.date = parseDate(d.date);
-		    d.close = +d.close;
-		  });
-
-		  x.domain(d3.extent(data, function(d) { return d.date; }));
-		  y.domain(d3.extent(data, function(d) { return d.close; }));
-
-		  svg.append("g")
-		      .attr("class", "x axis")
-		      .attr("transform", "translate(0," + height + ")")
-		      .call(xAxis);
-
-		  var feature = svg.append("path")
-		      .datum(data)
-		      .attr("class", "line")
-		      .attr("d", path)
-		      .attr('stroke', 'red');
-		  out['feature'] = feature;
+		console.log(data)
+		_data = _.map(data, function(d) {
+			return {
+				"date"  :  parseDate(d.date),
+				"close" : + d.close
+			}
 		});
-		
-		return out;
+
+		x.domain(d3.extent(_data, function(d) { return d.date; }));
+		y.domain(d3.extent(_data, function(d) { return d.close; }));
+			
+		svg.append("g")
+		  .attr("class", "x axis")
+		  .attr("transform", "translate(0," + height + ")")
+		  .call(xAxis);
+
+		var feature = svg.append("path")
+			  .datum(_data)
+			  .attr('d', path)
+			  .attr("class", "line")
+			  .attr('stroke', 'red');
 	}
 	
-	function reset_line(ts) {
-		if(ts.line_data) {
-			ts.line_data.pop()
-			console.log(ts.svg.selectAll('.line').attr('d', ts.path(ts.line_data)));			
-		}
+	var all_data = []
+	var svg = undefined;
+	function giver_handler(data) {
+		d3.select('#the_SVG_ID').remove();
+		all_data.push(data)
+		draw_line(all_data);
 	}
-
+	
+	socket.on('give', giver_handler);
 })

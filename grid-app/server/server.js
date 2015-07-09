@@ -26,7 +26,7 @@ app.use('/', express.static('../web'));
 var client = new es.Client({hosts : ['http://localhost:9205']});
 
 require('./routes.js')(app, client);
-require('./socket.js')(app, server);
+require('./socket.js')(app, server, client);
 
 server.listen(3000, function() {
   console.log("Started a server on port 3000");
