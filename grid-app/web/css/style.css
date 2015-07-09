@@ -6,7 +6,6 @@
     padding-bottom : 60px;
   }
 
-
   #map {
     position:absolute;
     top:50px; 
@@ -15,6 +14,48 @@
     z-index: 1;
     height:100%
   }
+
+  .side-bar {
+    position   : absolute;
+    top        : 0px;
+    right      : 0px;
+    bottom     : 200px;
+    width      : 250px;
+    background-color : rgb(36, 35, 35);
+    z-index : 2;
+    border : 1px solid grey;
+  }
+  
+  .bottom-bar {
+    position  : absolute;
+    bottom    : 0px;
+    left      : 0px;
+    right     : 0px;
+    height    : 200px;
+    background-color : rgb(36, 35, 35);
+    z-index : 3;
+    border : 1px solid grey;
+  }
+
+/**/
+
+.bottom-bar .axis path,
+.bottom-bar .axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.bottom-bar .x.axis path {
+  display: none;
+}
+
+.bottom-bar .line {
+  fill: none;
+  stroke-width: 2px;
+}
+
+/**/
 
   circle.ping {
       stroke       : #000;

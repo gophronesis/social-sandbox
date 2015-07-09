@@ -6,6 +6,7 @@ var es = require('elasticsearch'),
 // Express server
 var express = require('express'),
     app     = express();
+     server = require('http').createServer(app);
 
 app.use(require('body-parser').json());
     
@@ -25,6 +26,8 @@ app.use('/', express.static('../web'));
 var client = new es.Client({hosts : ['http://localhost:9205']});
 
 require('./routes.js')(app, client);
+require('./socket.js')(app, server);
 
-console.log('starting server...')
-app.listen(8111, '0.0.0.0');
+server.listen(3000, function() {
+  console.log("Started a server on port 3000");
+});
