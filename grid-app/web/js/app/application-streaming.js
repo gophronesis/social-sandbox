@@ -50,25 +50,27 @@ $(document).ready(function() {
 
 // <scrape-management>
 
-var flat_bounds;
 function set_scrape(scrape_name) {
-	$('#scrape-name').html(scrape_name);
 	socket.emit('set_scrape', scrape_name, function(response) {
 		
 		console.log('got response', response)
-		var southWest = L.latLng(response.bounds.bottom_right.lat, response.bounds.top_left.lon);
-		var northEast = L.latLng(response.bounds.top_left.lat, response.bounds.bottom_right.lon);
+		var southWest = L.latLng(response.geo_bounds.bottom_right.lat, response.geo_bounds.top_left.lon);
+		var northEast = L.latLng(response.geo_bounds.top_left.lat, response.geo_bounds.bottom_right.lon);
 		
-		var bounds = L.latLngBounds(southWest, northEast);
+		var geo_bounds = L.latLngBounds(southWest, northEast);
 		
-		L.rectangle(bounds, {
-			color       : "orange",
+		// Color the background of the region, for now at least
+		L.rectangle(geo_bounds, {
+			color       : "blue",
 			weight      : 1,
 			fillOpacity : .1
 		}).addTo(map)
 		
-		map.fitBounds(bounds);
+		map.fitBounds(geo_bounds);
 		
+		$('#scrape-name').html(response.scrape_name);
+		$('#scrape-start-date').html(response.temp_bounds.start_date);
+		$('#scrape-end-date').html(response.temp_bounds.end_date);
 	});
 }
 
@@ -332,6 +334,7 @@ function set_scrape(scrape_name) {
 	// Click on button to start a new scrape
 	$('#start-new-scrape').on('click', function() {
 		$('#first-modal').modal('hide');
+		
 	});
 	
 	// Click on button to look at an existing scrape
@@ -341,20 +344,19 @@ function set_scrape(scrape_name) {
 		
 		socket.emit('get_existing', function(response) {
 			console.log('response', response)
-			var content = $('<div>')
+			
+			// Make list of places
+			var content = $('<div>');
 			_.map(response.types, function(x) {
-				
-				var tmp = $('<button>').css('display', 'block').html(x)
-				
+				var tmp = $('<button>').css('display', 'block').addClass('btn btn-primary').addClass('scrape-name-btn').html(x)
 				tmp.on('click', function(e) {
 					$('#existing-modal').modal('hide');
 					console.log('>>>>', e);
 					set_scrape(e.target.innerText);
 				})
-				
 				tmp.appendTo(content);
-				
-			})
+			});
+			
 			$('#existing-modal .modal-body').html(content);	
 		});
 		

@@ -10,14 +10,14 @@ function Giver(client, socket, config) {
 	
 	this.client = client;
 	this.socket = socket;
-	
-	this.start_date   = undefined;
-	this.end_date     = undefined;
+
+	this.temp_bounds  = undefined;
+
 	this.current_date = undefined;
 	this.interval     = 'hour';
 	
 	this.grid_precision = 7;
-	this.bounds         = undefined
+	this.geo_bounds     = undefined
 	
 	this.running  = false;
 	
@@ -35,6 +35,11 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 				"geo_bounds" : {
 					"field" : "geoloc"
 				}				
+			},
+			"temp_bounds" : {
+				"stats" : {
+					"field"	: "created_time"
+				}
 			}
 		}
 	}
@@ -46,10 +51,15 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 		searchType : "count"
 	}).then(function(response) {
 		console.log(response)
-		_this.bounds = response.aggregations.geo_bounds.bounds;
+		_this.geo_bounds = response.aggregations.geo_bounds.bounds;
+		
 		cb({
 			"scrape_name" : _this.scrape_name,
-			"bounds"      : response.aggregations.geo_bounds.bounds
+			"geo_bounds"  : response.aggregations.geo_bounds.bounds,
+			"temp_bounds" : {
+				"start_date" : response.aggregations.temp_bounds.min_as_string,
+				"end_date"   : response.aggregations.temp_bounds.max_as_string
+			}
 		});
 	});
 }
@@ -86,7 +96,7 @@ Giver.prototype.give = function() {
 			// });
 		}
 		
-		if(_this.current_date.getTime() == _this.end_date.getTime()) {
+		if(_this.current_date.getTime() == _this.temp_bounds.end_date.getTime()) {
 			_this.stop();
 		}
 		
@@ -94,15 +104,14 @@ Giver.prototype.give = function() {
 }
 
 // Dates that the giver is iterating over
-Giver.prototype.set_dates = function(start_date, end_date) {
+Giver.prototype.set_temp_bounds = function(temp_bounds) {
 	
 	if(this.running) {
 		this.stop();	
 	}
 	
-	this.start_date   = start_date;
-	this.end_date     = end_date;
-	this.current_date = start_date;
+	this.temp_bounds  = temp_bounds;
+	this.current_date = temp_bounds.start_date;
 	return true;
 }
 
@@ -208,7 +217,7 @@ Giver.prototype.get_grid_data = function(cb) {
 				},
 				"filter": {
 					"geo_bounding_box": {
-						"geoloc": this.bounds
+						"geoloc": this.geo_bounds
 					}
 				}
 			}

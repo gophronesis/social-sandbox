@@ -21,7 +21,7 @@ module.exports = function(app, server, client, config) {
     
     // Giver
     var giver = new Giver(client, socket, config);
-    giver.set_dates(new Date('2015-04-01'), new Date('2015-04-30'));
+    giver.set_temp_bounds({"start_date" : new Date('2015-04-01'), "end_date" : new Date('2015-04-30')});
     
     socket.on('stop_giver', function()  { giver.stop() });
     socket.on('start_giver', function() { giver.start() });
@@ -45,8 +45,11 @@ module.exports = function(app, server, client, config) {
     socket.on('set_scrape', function(scrape_name, callback) {
       giver.set_scrape(scrape_name, function(scrape) {
         console.log('scrape', scrape);
+        // Send information about scrape back to front end
         callback(scrape);
-        // giver.start();
+        
+        // Start the scrape
+        giver.start();
       });
     });
     

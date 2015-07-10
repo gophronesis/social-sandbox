@@ -5,6 +5,31 @@
     padding-top    : 50px;
     padding-bottom : 60px;
   }
+  
+  .modal-title {
+    color : yellow;
+  }
+  
+  .modal-dialog {
+    margin-left: 15%;
+    margin-right: 15%;
+    width: 70%;
+  }
+  
+  .modal-content {
+    background : rgba(0, 119, 255, 0.78);
+  }
+  
+  .scrape-name-btn {
+    width: 100%;
+    font-size: 1.25em;
+  }
+
+  .scrape-opt-btn {
+    width: 100%;
+    padding: 53px;
+    font-size: 3em;
+  }
 
   #map {
     position:absolute;
