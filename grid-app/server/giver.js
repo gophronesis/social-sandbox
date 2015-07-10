@@ -17,14 +17,7 @@ function Giver(client, socket, config) {
 	this.interval     = 'hour';
 	
 	this.grid_precision = 7;
-	this.top_left     = {
-		"lat": 39.3833 ,
-		"lon":  -76.71669999999999
-	}
-	this.bottom_right = {
-		"lat": 39.183299999999996,
-		"lon": -76.5167		
-	}
+	this.bounds         = undefined
 	
 	this.running  = false;
 	
@@ -32,8 +25,33 @@ function Giver(client, socket, config) {
 	this._process = undefined;
 }
 
-Giver.prototype.set_scrape = function(scrape_name) {
+Giver.prototype.set_scrape = function(scrape_name, cb) {
+	var _this = this;
 	this.scrape_name = scrape_name;
+	
+	var query = {
+		"aggs" : {
+			"geo_bounds" : {
+				"geo_bounds" : {
+					"field" : "geoloc"
+				}				
+			}
+		}
+	}
+	
+	this.client.search({
+		index : this.index,
+		type  : this.scrape_name,
+		body  : query,
+		searchType : "count"
+	}).then(function(response) {
+		console.log(response)
+		_this.bounds = response.aggregations.geo_bounds.bounds;
+		cb({
+			"scrape_name" : _this.scrape_name,
+			"bounds"      : response.aggregations.geo_bounds.bounds
+		});
+	});
 }
 
 Giver.prototype.start = function() {
@@ -190,10 +208,7 @@ Giver.prototype.get_grid_data = function(cb) {
 				},
 				"filter": {
 					"geo_bounding_box": {
-						"geoloc": {
-							"top_left"     : this.top_left,
-							"bottom_right" : this.bottom_right
-						}
+						"geoloc": this.bounds
 					}
 				}
 			}

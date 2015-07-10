@@ -50,10 +50,25 @@ $(document).ready(function() {
 
 // <scrape-management>
 
+var flat_bounds;
 function set_scrape(scrape_name) {
 	$('#scrape-name').html(scrape_name);
 	socket.emit('set_scrape', scrape_name, function(response) {
-		console.log('response', response)
+		
+		console.log('got response', response)
+		var southWest = L.latLng(response.bounds.bottom_right.lat, response.bounds.top_left.lon);
+		var northEast = L.latLng(response.bounds.top_left.lat, response.bounds.bottom_right.lon);
+		
+		var bounds = L.latLngBounds(southWest, northEast);
+		
+		L.rectangle(bounds, {
+			color       : "orange",
+			weight      : 1,
+			fillOpacity : .1
+		}).addTo(map)
+		
+		map.fitBounds(bounds);
+		
 	});
 }
 
@@ -143,19 +158,21 @@ function set_scrape(scrape_name) {
 	// Move D3 with map
 	function reset_grid(grid) {
 		// Fix bounding box
-		var bounds      = project.bounds(grid.grid_data),
-		    topLeft     = bounds[0],
-		    bottomRight = bounds[1];
-		  
-		grid.svg.attr("width",   bottomRight[0] - topLeft[0])
-		    .attr("height", bottomRight[1] - topLeft[1])
-		    .style("left",  topLeft[0] + "px")
-		    .style("top",   topLeft[1] + "px")
+		if(grid) {
+			var bounds      = project.bounds(grid.grid_data),
+			    topLeft     = bounds[0],
+			    bottomRight = bounds[1];
+			  
+			grid.svg.attr("width",   bottomRight[0] - topLeft[0])
+			    .attr("height", bottomRight[1] - topLeft[1])
+			    .style("left",  topLeft[0] + "px")
+			    .style("top",   topLeft[1] + "px")
 
-		grid.g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
+			grid.g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
 
-		// Redraw
-		draw_grid(grid, grid.grid_data);
+			// Redraw
+			draw_grid(grid, grid.grid_data);			
+		}
 	}
 
 	map.on("viewreset", function() {

@@ -43,9 +43,11 @@ module.exports = function(app, server, client, config) {
     });
     
     socket.on('set_scrape', function(scrape_name, callback) {
-      giver.set_scrape(scrape_name);
-      giver.start();
-      callback(scrape_name);
+      giver.set_scrape(scrape_name, function(scrape) {
+        console.log('scrape', scrape);
+        callback(scrape);
+        // giver.start();
+      });
     });
     
     
