@@ -48,10 +48,21 @@ $(document).ready(function() {
 
 // </draw-map>
 
+// <scrape-management>
+
+function set_scrape(scrape_name) {
+	$('#scrape-name').html(scrape_name);
+	socket.emit('set_scrape', scrape_name, function(response) {
+		console.log('response', response)
+	});
+}
+
+// </scrape-management>
+
 // <socket>
 	var socket = io.connect('http://localhost:3000/');
-	socket.on('give', giver_handler);
 	
+	socket.on('give', giver_handler);
 	var line_data = []
 	var grid;
 	function giver_handler(data) {
@@ -74,8 +85,6 @@ $(document).ready(function() {
 		} else {
 			draw_grid(grid, data.grid)
 		}
-		
-
 	}
 // </socket>
 
@@ -302,5 +311,41 @@ $(document).ready(function() {
 			"user"           : "dev_user"
 		});
 	}
+	
+	// Click on button to start a new scrape
+	$('#start-new-scrape').on('click', function() {
+		$('#first-modal').modal('hide');
+	});
+	
+	// Click on button to look at an existing scrape
+	$('#start-existing-scrape').on('click', function() {
+		$('#first-modal').modal('hide');
+		$('#existing-modal').modal('show');
+		
+		socket.emit('get_existing', function(response) {
+			console.log('response', response)
+			var content = $('<div>')
+			_.map(response.types, function(x) {
+				
+				var tmp = $('<button>').css('display', 'block').html(x)
+				
+				tmp.on('click', function(e) {
+					$('#existing-modal').modal('hide');
+					console.log('>>>>', e);
+					set_scrape(e.target.innerText);
+				})
+				
+				tmp.appendTo(content);
+				
+			})
+			$('#existing-modal .modal-body').html(content);	
+		});
+		
+	});
 // </events>
+
+// <init>
+$('#first-modal').modal('show');
+// </init>
+
 })

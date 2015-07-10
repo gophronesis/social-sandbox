@@ -25,8 +25,7 @@ app.use('/', express.static('../web'));
 // Setup routes
 var config = {
 	'es_path' : 'http://10.1.94.103:9200',
-	'index'   : 'instagram_remap',
-	'type'    : 'baltimore'
+	'index'   : 'instagram_remap'
 }
 
 var client = new es.Client({hosts : [config.es_path]});

@@ -22,7 +22,6 @@ module.exports = function(app, server, client, config) {
     // Giver
     var giver = new Giver(client, socket, config);
     giver.set_dates(new Date('2015-04-01'), new Date('2015-04-30'));
-    giver.start();
     
     socket.on('stop_giver', function()  { giver.stop() });
     socket.on('start_giver', function() { giver.start() });
@@ -32,6 +31,24 @@ module.exports = function(app, server, client, config) {
       console.log('initating scrape...')
       // STUB FOR JUSTIN
     })
+    
+    // Get list of existing scrapes
+    socket.on('get_existing', function(callback) {
+      console.log('get_existing')
+      client.indices.getMapping({
+        index : config['index']
+      }).then(function(response) {
+        callback({'types' : _.keys(response[config['index']]['mappings'])});
+      });
+    });
+    
+    socket.on('set_scrape', function(scrape_name, callback) {
+      giver.set_scrape(scrape_name);
+      giver.start();
+      callback(scrape_name);
+    });
+    
+    
     
     socket.on('disconnect', function(){
       giver.stop();

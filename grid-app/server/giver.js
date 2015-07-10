@@ -5,7 +5,9 @@ var async    = require('async');
 
 function Giver(client, socket, config) {
 	
-	this.config = config;
+	this.index       = config.index;
+	this.scrape_name = undefined,
+	
 	this.client = client;
 	this.socket = socket;
 	
@@ -26,45 +28,28 @@ function Giver(client, socket, config) {
 	
 	this.running  = false;
 	
-	this._speed   = 100;
+	this._speed   = 500;
 	this._process = undefined;
+}
+
+Giver.prototype.set_scrape = function(scrape_name) {
+	this.scrape_name = scrape_name;
+}
+
+Giver.prototype.start = function() {
+	if(this.scrape_name) {
+		console.log('starting giver...')
+		this.running  = true;
+		this._process = this.give();		
+	} else {
+		console.log('!!! no scrape set yet !!!')
+	}
 }
 
 Giver.prototype.stop = function() {
 	console.log('stopping giver...')
 	this.running = false;
 	clearInterval(this._process);
-}
-
-Giver.prototype.start = function() {
-	console.log('starting giver...')
-	this.running = true;
-	this._process = this.give();
-}
-
-function geohash_to_geojson(hash, props) {
-	// props = props | {};
-	
-	var data1 = ngeohash.decode_bbox(hash)
-	
-	// Convert geohash format to d3 path format
-	var datas = []
-	for(i = 0; i <= data1.length; i++) {
-		var tmp = [data1[i%data1.length], data1[(i+1)%data1.length]]
-		if(i%2 == 0) {
-			tmp.reverse()
-		}
-		datas.push(tmp)
-	}
-	
-	return {
-		"type" : "Feature",
-		"geometry" : {
-			"type" : "Polygon",
-			"coordinates" : [datas]
-		},
-		"properties" : props
-	}
 }
 
 // giving function
@@ -148,8 +133,8 @@ Giver.prototype.get_ts_data = function(cb) {
 	}
 	
 	this.client.search({
-		index : this.config['index'],
-		type  : this.config['type'],
+		index : this.index,
+		type  : this.scrape_name,
 		body  : query
 	}).then(function(response) {
 		cb(null, {"count" : response.hits.total, "date" : _this.current_date});
@@ -171,8 +156,8 @@ Giver.prototype.get_image_data = function(cb) {
 	}
 	
 	this.client.search({
-		index : this.config['index'],
-		type  : this.config['type'],
+		index : this.index,
+		type  : this.scrape_name,
 		body  : query
 	}).then(function(response) {
 		var out = _.chain(response.hits.hits).map(function(hit) {
@@ -227,8 +212,8 @@ Giver.prototype.get_grid_data = function(cb) {
 	console.log(JSON.stringify(query));
 	
 	this.client.search({
-		index : this.config['index'],
-		type  : this.config['type'],
+		index : this.index,
+		type  : this.scrape_name,
 		body  : query
 	}).then(function(response) {
 		var buckets = response.aggregations.locs.buckets;
@@ -238,6 +223,7 @@ Giver.prototype.get_grid_data = function(cb) {
 	});
 }
 
+// ---- Helper functions -----
 
 function dateAdd(date, interval, units) {
   var ret = new Date(date); //don't change original date
@@ -254,5 +240,31 @@ function dateAdd(date, interval, units) {
   }
   return ret;
 }
+
+function geohash_to_geojson(hash, props) {
+	// props = props | {};
+	
+	var data1 = ngeohash.decode_bbox(hash)
+	
+	// Convert geohash format to d3 path format
+	var datas = []
+	for(i = 0; i <= data1.length; i++) {
+		var tmp = [data1[i%data1.length], data1[(i+1)%data1.length]]
+		if(i%2 == 0) {
+			tmp.reverse()
+		}
+		datas.push(tmp)
+	}
+	
+	return {
+		"type" : "Feature",
+		"geometry" : {
+			"type" : "Polygon",
+			"coordinates" : [datas]
+		},
+		"properties" : props
+	}
+}
+
 
 module.exports = Giver;

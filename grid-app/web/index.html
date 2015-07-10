@@ -4,7 +4,7 @@
 
   <script src="js/libs/jquery.min.js"></script>
   <script src="js/libs/jquery-ui.js"></script>
-  <script src="js/libs/bootstrap.min.js"></script>
+  
 
   <script src="js/libs/leaflet.js"></script>
   <script src="js/libs/leaflet.draw.js"></script>
@@ -18,9 +18,13 @@
   <script src="js/libs/geojs/geo.min.js"></script>
 
   <link rel="stylesheet" href="css/bootstrap.min.css">  
+  <script src="js/libs/bootstrap.min.js"></script>
+  
+  
   <link rel="stylesheet" href="css/leaflet.css" />  
   <link rel="stylesheet" href="css/leaflet.draw.css" />  
   <link type="text/css" rel="stylesheet" href="css/style.css"/>
+  
   
 </head>
 
@@ -32,6 +36,10 @@
         <span class="navbar-brand">StreamingSocialSandbox</span>
       </div>
       <div>
+        <ul>
+          <h4 id="scrape-name" style="color:white;">
+          </h4>
+        </ul>
         <ul class="pull-right">
           <button class="btn btn-primary" id="start-stream"> Start </button>
           <button class="btn btn-primary" id="stop-stream"> Stop </button>
@@ -43,6 +51,57 @@
   <div class="side-bar"></div>
   <div class="bottom-bar"></div>
   <div id="map"></div>
+  
+  <!-- Trigger the modal with a button -->
+
+
+<div id="first-modal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h3 class="modal-title">StreamingSocialSandbox</h3>
+      </div>
+      <div class="modal-body">
+        <button class="btn btn-primary" id="start-new-scrape">
+          New Scrape
+        </button>
+        <button class="btn btn-primary" id="start-existing-scrape">
+          Existing Scrape
+        </button>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="existing-modal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h3 class="modal-title">StreamingSocialSandbox</h3>
+      </div>
+      <div class="modal-body">
+      
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+  
   
   <script src="js/app/application-streaming.js"></script>
   
