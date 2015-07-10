@@ -1,5 +1,5 @@
 
-module.exports = function(app, server, client) {
+module.exports = function(app, server, client, config) {
   var io    = require('socket.io').listen(server, { log : false });
   // var kafka = require('kafka-node');
   var _     = require('underscore');
@@ -20,7 +20,7 @@ module.exports = function(app, server, client) {
   io.sockets.on('connection', function(socket) {
     
     // Giver
-    var giver = new Giver(client, socket);
+    var giver = new Giver(client, socket, config);
     giver.set_dates(new Date('2015-04-01'), new Date('2015-04-30'));
     giver.start();
     

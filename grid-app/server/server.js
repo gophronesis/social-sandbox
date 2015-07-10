@@ -23,10 +23,16 @@ app.all('*', function(req, res, next) {
 app.use('/', express.static('../web'));
     
 // Setup routes
-var client = new es.Client({hosts : ['http://localhost:9205']});
+var config = {
+	'es_path' : 'http://10.1.94.103:9200',
+	'index'   : 'instagram_remap',
+	'type'    : 'baltimore'
+}
 
-require('./routes.js')(app, client);
-require('./socket.js')(app, server, client);
+var client = new es.Client({hosts : [config.es_path]});
+
+// require('./routes.js')(app, client, config);
+require('./socket.js')(app, server, client, config);
 
 server.listen(3000, function() {
   console.log("Started a server on port 3000");

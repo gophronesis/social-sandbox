@@ -3,15 +3,16 @@ var _        = require('underscore')._;
 var ngeohash = require('ngeohash');
 var async    = require('async');
 
-function Giver(client, socket) {
+function Giver(client, socket, config) {
 	
+	this.config = config;
 	this.client = client;
 	this.socket = socket;
 	
 	this.start_date   = undefined;
 	this.end_date     = undefined;
 	this.current_date = undefined;
-	this.interval     = 'minute';
+	this.interval     = 'hour';
 	
 	this.grid_precision = 7;
 	this.top_left     = {
@@ -135,10 +136,10 @@ Giver.prototype.get_ts_data = function(cb) {
 	var _this = this;
 	console.log(_this.current_date)
 	var query = {
-		"_source" : ['gftime'],
+		"_source" : ['created_time'],
 		"query" : {
 			"range" : {
-				"gftime" : {
+				"created_time" : {
 					"gte" : _this.current_date,
 					"lte" : dateAdd(_this.current_date, _this.interval, 1)
 				}
@@ -147,8 +148,8 @@ Giver.prototype.get_ts_data = function(cb) {
 	}
 	
 	this.client.search({
-		index : 'instagram',
-		type  : 'baltimore',
+		index : this.config['index'],
+		type  : this.config['type'],
 		body  : query
 	}).then(function(response) {
 		cb(null, {"count" : response.hits.total, "date" : _this.current_date});
@@ -161,7 +162,7 @@ Giver.prototype.get_image_data = function(cb) {
 	var query = {
 		"query" : {
 			"range" : {
-				"gftime" : {
+				"created_time" : {
 					"gte" : _this.current_date,
 					"lte" : dateAdd(_this.current_date, _this.interval, 1)
 				}
@@ -170,8 +171,8 @@ Giver.prototype.get_image_data = function(cb) {
 	}
 	
 	this.client.search({
-		index : 'instagram',
-		type  : 'baltimore',
+		index : this.config['index'],
+		type  : this.config['type'],
 		body  : query
 	}).then(function(response) {
 		var out = _.chain(response.hits.hits).map(function(hit) {
@@ -196,7 +197,7 @@ Giver.prototype.get_grid_data = function(cb) {
 			"filtered": {
 				"query" : {
 					"range" : {
-						"gftime" : {
+						"created_time" : {
 							"gte" : this.current_date,
 							"lte" : dateAdd(this.current_date, this.interval, 1)							
 						}
@@ -204,7 +205,7 @@ Giver.prototype.get_grid_data = function(cb) {
 				},
 				"filter": {
 					"geo_bounding_box": {
-						"gfloc": {
+						"geoloc": {
 							"top_left"     : this.top_left,
 							"bottom_right" : this.bottom_right
 						}
@@ -215,7 +216,7 @@ Giver.prototype.get_grid_data = function(cb) {
 		"aggs": {
 			"locs": {
 				"geohash_grid": {
-					"field"     : "gfloc",
+					"field"     : "geoloc",
 					"precision" : this.grid_precision,
 					"size"      : 10000
 				}
@@ -223,13 +224,16 @@ Giver.prototype.get_grid_data = function(cb) {
 		}
 	}
 		
+	console.log(JSON.stringify(query));
+	
 	this.client.search({
-		index : 'instagram',
-		type  : 'baltimore',
+		index : this.config['index'],
+		type  : this.config['type'],
 		body  : query
 	}).then(function(response) {
 		var buckets = response.aggregations.locs.buckets;
 		var out     = _.map(buckets, function(x) { return geohash_to_geojson(x['key'], {'count' : x['doc_count']}); })
+		console.log(out);
 		cb(null, {'grid' : {"type" : "FeatureCollection", "features" : out}});
 	});
 }
