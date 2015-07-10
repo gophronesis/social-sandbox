@@ -1,5 +1,6 @@
+
 $(document).ready(function() {
-	// <draw-map>
+// <draw-map>
 	var baseLayer = L.tileLayer('https://{s}.tiles.mapbox.com/v3/cwhong.map-hziyh867/{z}/{x}/{y}.png', {
 	  attribution : "Social Sandbox",
 	  maxZoom     : 18
@@ -10,9 +11,44 @@ $(document).ready(function() {
 	  zoom   : 12,
 	  layers : [baseLayer]
 	});
-	// </draw-map>
+	
+	// Draw controls
+	var drawnItems = new L.FeatureGroup();
+	map.addLayer(drawnItems);
 
-	// <socket>
+	var drawControl = new L.Control.Draw({
+		edit: {
+			featureGroup: drawnItems
+		},
+		draw : {
+			polyline : false,
+			polygon  : false,
+			circle   : false,
+			marker   : false,
+			rectangle : {
+				shapeOptions : {
+					color : "white"
+				}
+			}
+		}
+	});
+	map.addControl(drawControl);
+
+	map.on('draw:created', function (e) {
+		console.log(e.layer);
+
+		// Adds button to region that allows the user to kick off a scrape
+		var link = $('<a class="int-scrape"> Initiate Scrape </a>').click(function() {
+			init_scrape(e.layer);
+		})[0];
+		e.layer.bindPopup(link);
+
+		drawnItems.addLayer(e.layer);
+	});
+
+// </draw-map>
+
+// <socket>
 	var socket = io.connect('http://localhost:3000/');
 	socket.on('give', giver_handler);
 	
@@ -20,43 +56,39 @@ $(document).ready(function() {
 	var grid;
 	function giver_handler(data) {
 		
-		
 		// Draw lines
 		d3.select('#line_svg').remove();
 		line_data.push({'date' : data.date, 'count' : data.count});
 		draw_line(line_data);
 		
 		// Show images
-	    // _.map(data.images, function(img) {
-	    // 	console.log(img)
-	    //   draw_image(img);
-	    // });
+	    _.map(data.images, function(img) {
+			// draw_image(img);
+			sidebar_image(img);
+	    });
 	
 		// Grid
 		if(!grid) {
 			grid = init_grid(data.grid)
 			reset_grid(grid)
-			map.on("viewreset", function() {
-				reset_grid(grid)
-			});
 		} else {
-			console.log('redrawing')
 			draw_grid(grid, data.grid)
 		}
 		
 
 	}
-	// </socket>
+// </socket>
 
-// <grid>
+// <grid> -- The d3 here is sloppier than I would hope
+
 	// Drawing grid
-	function make_turf_grid() {
-		var extent     = [-76.6167 - .1, 39.2833 - .1, -76.6167 + .1, 39.2833 + .1];
-		var cellWidth  = .5;
-		var units      = 'miles';
-		var turf_data  = turf.squareGrid(extent, cellWidth, units);
-		return turf_data;
-	}
+	// function make_turf_grid() {
+	// 	var extent     = [-76.6167 - .1, 39.2833 - .1, -76.6167 + .1, 39.2833 + .1];
+	// 	var cellWidth  = .5;
+	// 	var units      = 'miles';
+	// 	var turf_data  = turf.squareGrid(extent, cellWidth, units);
+	// 	return turf_data;
+	// }
 
 
 	// Project onto map
@@ -101,6 +133,7 @@ $(document).ready(function() {
 
 	// Move D3 with map
 	function reset_grid(grid) {
+		// Fix bounding box
 		var bounds      = project.bounds(grid.grid_data),
 		    topLeft     = bounds[0],
 		    bottomRight = bounds[1];
@@ -112,22 +145,16 @@ $(document).ready(function() {
 
 		grid.g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
 
-		draw_grid(grid)
+		// Redraw
+		draw_grid(grid, grid.grid_data);
 	}
 
+	map.on("viewreset", function() {
+		reset_grid(grid)
+	});
+
+
 	// var grid_data = make_turf_grid();
-	// console.log(JSON.stringify(grid_data.features[0]))
-	
-	// var d = {"type":"Feature","geometry":{"type":"Polygon",
-	// 	"coordinates":[[[-76.71669999999999,39.183299999999996],[-76.71669999999999,39.19053431559508],[-76.70736694690846,39.19053431559508],[-76.70736694690846,39.183299999999996],[-76.71669999999999,39.183299999999996]]]},
-	// 	"properties":{}}
-	// var d = {"type":"Feature","geometry":{"type":"Polygon", 
-	// 	"coordinates":[[[-76.728515625,39.1552734375],[-76.728515625,39.19921875],[-76.6845703125,39.19921875],[-76.6845703125,39.1552734375],[-76.728515625,39.1552734375]]],
-	// 	"properties" : {}
-	// }}
-	
-	// console.log(grid_data)
-	// var grid_data = {"type":"FeatureCollection","features":[d]}
 	// var grid = init_grid(grid_data)
 	
 	// reset_grid(grid)
@@ -143,6 +170,10 @@ $(document).ready(function() {
 	        iconSize:[50, 50],
 	    }
 	});
+	
+	function sidebar_image(d) {
+		$('.side-bar').prepend('<img id="' + d.id + '" src="' + d.img_url + '" class="side-bar-image" />');
+	}
 	
 	function draw_image(d) {
 		var m = L.marker([d.loc.lat, d.loc.lon], {
@@ -253,4 +284,23 @@ $(document).ready(function() {
 			  .attr('stroke', 'red');
 	}
 // </GRAPH>
+
+// <events>
+	$('#start-stream').on('click', function() {
+		socket.emit('start_giver');
+	});
+
+	$('#stop-stream').on('click', function() {
+		socket.emit('stop_giver');
+	});
+
+	
+	function init_scrape(layer) {
+		socket.emit('init_scrape', {
+			"leaflet_bounds" : layer.getBounds(),
+			"time"           : + new Date(),
+			"user"           : "dev_user"
+		});
+	}
+// </events>
 })

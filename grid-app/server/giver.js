@@ -11,7 +11,7 @@ function Giver(client, socket) {
 	this.start_date   = undefined;
 	this.end_date     = undefined;
 	this.current_date = undefined;
-	this.interval     = 'hour';
+	this.interval     = 'minute';
 	
 	this.grid_precision = 7;
 	this.top_left     = {
@@ -121,8 +121,8 @@ Giver.prototype.get_data = function(cb) {
 	
 	async.parallel([
 		_this.get_ts_data.bind(_this),
-		_this.get_grid_data.bind(_this)
-		// this.get_image_data
+		_this.get_grid_data.bind(_this),
+		_this.get_image_data.bind(_this)
 	], function (err, results) {
 		// Combine results
 		cb(

@@ -24,8 +24,14 @@ module.exports = function(app, server, client) {
     giver.set_dates(new Date('2015-04-01'), new Date('2015-04-30'));
     giver.start();
     
-    // socket.on('stop_giver', function()  { giver.stop() });
-    // socket.on('start_giver', function() { giver.start() });
+    socket.on('stop_giver', function()  { giver.stop() });
+    socket.on('start_giver', function() { giver.start() });
+    
+    // Initiating scraping
+    socket.on('init_scrape', function() {
+      console.log('initating scrape...')
+      // STUB FOR JUSTIN
+    })
     
     socket.on('disconnect', function(){
       giver.stop();
