@@ -328,7 +328,7 @@ function set_scrape(scrape_name) {
 		$("#init-modal").modal('show');
 	});
 	
-	$('#init-modal-form').submit(function() {
+	$('#init-modal-form-submit').on('click',function() {
 		socket.emit('init_scrape', {
 			"name"           : $( "#init-modal-form-name" ).val(),
 			"comments"       : $( "#init-modal-form-comment" ).val(),
