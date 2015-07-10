@@ -27,12 +27,13 @@ module.exports = function(app, server, client, config) {
     socket.on('start_giver', function() { giver.start() });
     
     // Initiating scraping
-    socket.on('init_scrape', function() {
+    socket.on('init_scrape', function(callback) {
       console.log('initating scrape...')
       // STUB FOR JUSTIN
+      callback({'status' : 'ok'});
     })
     
-    // Get list of existing scrapes
+    // List of existing scrape
     socket.on('get_existing', function(callback) {
       console.log('get_existing')
       client.indices.getMapping({
@@ -42,6 +43,7 @@ module.exports = function(app, server, client, config) {
       });
     });
     
+    // Choosing an existing scrape
     socket.on('set_scrape', function(scrape_name, callback) {
       giver.set_scrape(scrape_name, function(scrape) {
         console.log('scrape', scrape);

@@ -2,11 +2,17 @@
 
 <head>
 
+  <link rel="stylesheet" href="css/leaflet.css" />  
+  <link rel="stylesheet" href="css/leaflet.draw.css" />  
+  <link rel="stylesheet" href="css/bootstrap.min.css">  
+  <link type="text/css" rel="stylesheet" href="css/style.css"/>
+  
   <script src="js/libs/jquery.min.js"></script>
   <script src="js/libs/jquery-ui.js"></script>
   
 
   <script src="js/libs/leaflet.js"></script>
+  
   <script src="js/libs/leaflet.draw.js"></script>
 
   <script src="js/libs/turf.min.js"></script>
@@ -17,14 +23,8 @@
   <script src="js/libs/geojs/geo.ext.min.js"></script>
   <script src="js/libs/geojs/geo.min.js"></script>
 
-  <link rel="stylesheet" href="css/bootstrap.min.css">  
+  
   <script src="js/libs/bootstrap.min.js"></script>
-  
-  
-  <link rel="stylesheet" href="css/leaflet.css" />  
-  <link rel="stylesheet" href="css/leaflet.draw.css" />  
-  <link type="text/css" rel="stylesheet" href="css/style.css"/>
-  
   
 </head>
 
@@ -42,6 +42,7 @@
           <li id="scrape-end-date" style="color:white; padding: 5px;"></li>
         </ul>
         <ul class="pull-right">
+          <button class="btn btn-primary" id="init-scrape-btn"> Initialize Scrape </button>
           <button class="btn btn-primary" id="start-stream"> Start </button>
           <button class="btn btn-primary" id="stop-stream"> Stop </button>
         </ul>

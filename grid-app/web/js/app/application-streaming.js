@@ -7,44 +7,46 @@ $(document).ready(function() {
 	});
 
 	var map = new L.Map('map', {
-	  center : new L.LatLng(39.2833, -76.6167),
-	  zoom   : 12,
+	  center : new L.LatLng(0,0),
+	  zoom   : 2,
 	  layers : [baseLayer]
 	});
-	
-	// Draw controls
-	var drawnItems = new L.FeatureGroup();
-	map.addLayer(drawnItems);
 
-	var drawControl = new L.Control.Draw({
-		edit: {
-			featureGroup: drawnItems
-		},
-		draw : {
-			polyline : false,
-			polygon  : false,
-			circle   : false,
-			marker   : false,
-			rectangle : {
-				shapeOptions : {
-					color : "white"
+	var drawnItems = new L.FeatureGroup();
+	map.addLayer(drawnItems);	
+	
+	function make_drawControl() {
+		// Draw controls
+		var drawControl = new L.Control.Draw({
+			edit: {
+				featureGroup: drawnItems
+			},
+			draw : {
+				polyline : false,
+				polygon  : false,
+				circle   : false,
+				marker   : false,
+				rectangle : {
+					shapeOptions : {
+						color : "yellow"
+					}
 				}
 			}
-		}
-	});
-	map.addControl(drawControl);
+		});
+		map.addControl(drawControl);
 
-	map.on('draw:created', function (e) {
-		console.log(e.layer);
-
-		// Adds button to region that allows the user to kick off a scrape
-		var link = $('<a class="int-scrape"> Initiate Scrape </a>').click(function() {
-			init_scrape(e.layer);
-		})[0];
-		e.layer.bindPopup(link);
-
-		drawnItems.addLayer(e.layer);
-	});
+		map.on('draw:created', function (e) {
+			console.log('e', e);
+			drawnItems.addLayer(e.layer);
+			$('#init-scrape-btn').css('display', 'inline');
+		});
+		
+		map.on('draw:deleted', function(e) {
+			if(drawnItems.getLayers().length == 0) {
+				$('#init-scrape-btn').css('display', 'none');		
+			}
+		})
+	}
 
 // </draw-map>
 
@@ -322,19 +324,22 @@ function set_scrape(scrape_name) {
 		socket.emit('stop_giver');
 	});
 
-	
-	function init_scrape(layer) {
+	$('#init-scrape-btn').on('click', function() {
+		var rect = drawnItems.getLayers()[0];
+		console.log('layer', layer);
 		socket.emit('init_scrape', {
-			"leaflet_bounds" : layer.getBounds(),
+			"leaflet_bounds" : rect.getBounds(),
 			"time"           : + new Date(),
 			"user"           : "dev_user"
-		});
-	}
-	
+		}, function(response) {
+			console.log('response from init_scrape :: ', response);
+		});		
+	});
+		
 	// Click on button to start a new scrape
 	$('#start-new-scrape').on('click', function() {
 		$('#first-modal').modal('hide');
-		
+		make_drawControl();
 	});
 	
 	// Click on button to look at an existing scrape
@@ -365,6 +370,7 @@ function set_scrape(scrape_name) {
 
 // <init>
 $('#first-modal').modal('show');
+$('#init-scrape-btn').css('display', 'none');
 // </init>
 
 })
