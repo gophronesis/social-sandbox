@@ -27,8 +27,8 @@ module.exports = function(app, server, client, config) {
     socket.on('start_giver', function() { giver.start() });
     
     // Initiating scraping
-    socket.on('init_scrape', function(callback) {
-      console.log('initating scrape...')
+    socket.on('init_scrape', function(data, callback) {
+      console.log('initating scrape :: ', data);
       // STUB FOR JUSTIN
       callback({'status' : 'ok'});
     })
@@ -46,11 +46,11 @@ module.exports = function(app, server, client, config) {
     // Choosing an existing scrape
     socket.on('set_scrape', function(scrape_name, callback) {
       giver.set_scrape(scrape_name, function(scrape) {
-        console.log('scrape', scrape);
+        
         // Send information about scrape back to front end
         callback(scrape);
         
-        // Start the scrape
+        // Start the scrape playback
         giver.start();
       });
     });

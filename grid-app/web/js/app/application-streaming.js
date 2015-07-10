@@ -154,7 +154,7 @@ function set_scrape(scrape_name) {
 		feature.attr('d', project)
 			.attr('opacity', function(d) {
 				// return Math.random()
-				return d.properties.count;
+				return d.properties.count / 10;
 			})
 			.attr('fill', 'red')
 	}
@@ -325,16 +325,22 @@ function set_scrape(scrape_name) {
 	});
 
 	$('#init-scrape-btn').on('click', function() {
-		var rect = drawnItems.getLayers()[0];
-		console.log('layer', layer);
+		$("#init-modal").modal('show');
+	});
+	
+	$('#init-modal-form').submit(function() {
 		socket.emit('init_scrape', {
-			"leaflet_bounds" : rect.getBounds(),
+			"name"           : $( "#init-modal-form-name" ).val(),
+			"comments"       : $( "#init-modal-form-comment" ).val(),
+			"leaflet_bounds" : drawnItems.getLayers()[0].getBounds(), // Rectangle bounds
 			"time"           : + new Date(),
 			"user"           : "dev_user"
 		}, function(response) {
 			console.log('response from init_scrape :: ', response);
 		});		
-	});
+		
+		$('#init-modal').modal('hide');
+	})
 		
 	// Click on button to start a new scrape
 	$('#start-new-scrape').on('click', function() {
