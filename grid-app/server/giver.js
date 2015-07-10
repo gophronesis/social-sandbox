@@ -1,18 +1,31 @@
 
-var _ = require('underscore')._;
+var _        = require('underscore')._;
+var ngeohash = require('ngeohash');
+var async    = require('async');
 
 function Giver(client, socket) {
 	
-	this.client  = client;
-	this.socket  = socket;
+	this.client = client;
+	this.socket = socket;
 	
 	this.start_date   = undefined;
 	this.end_date     = undefined;
 	this.current_date = undefined;
-	this.interval     = 'day';
+	this.interval     = 'hour';
 	
-	this.running = true;
+	this.grid_precision = 7;
+	this.top_left     = {
+		"lat": 39.3833 ,
+		"lon":  -76.71669999999999
+	}
+	this.bottom_right = {
+		"lat": 39.183299999999996,
+		"lon": -76.5167		
+	}
 	
+	this.running  = false;
+	
+	this._speed   = 100;
 	this._process = undefined;
 }
 
@@ -28,6 +41,31 @@ Giver.prototype.start = function() {
 	this._process = this.give();
 }
 
+function geohash_to_geojson(hash, props) {
+	// props = props | {};
+	
+	var data1 = ngeohash.decode_bbox(hash)
+	
+	// Convert geohash format to d3 path format
+	var datas = []
+	for(i = 0; i <= data1.length; i++) {
+		var tmp = [data1[i%data1.length], data1[(i+1)%data1.length]]
+		if(i%2 == 0) {
+			tmp.reverse()
+		}
+		datas.push(tmp)
+	}
+	
+	return {
+		"type" : "Feature",
+		"geometry" : {
+			"type" : "Polygon",
+			"coordinates" : [datas]
+		},
+		"properties" : props
+	}
+}
+
 // giving function
 Giver.prototype.give = function() {
 	var _this = this;
@@ -39,13 +77,16 @@ Giver.prototype.give = function() {
 			_this.get_data(function(data) {
 				_this.socket.emit('give', data)	
 			});
+			// _this.get_grid_data(function(data) {
+			// 	_this.socket.emit('give', data)	
+			// });
 		}
 		
 		if(_this.current_date.getTime() == _this.end_date.getTime()) {
 			_this.stop();
 		}
 		
-	}, 500);
+	}, _this._speed);
 }
 
 // Dates that the giver is iterating over
@@ -58,6 +99,16 @@ Giver.prototype.set_dates = function(start_date, end_date) {
 	this.start_date   = start_date;
 	this.end_date     = end_date;
 	this.current_date = start_date;
+	return true;
+}
+
+Giver.prototype.set_interval = function(interval) {
+	if(this.running) {
+		this.stop();
+	}
+	
+	this.interval = interval;
+	return true;
 }
 
 Giver.prototype._next_period = function() {
@@ -68,6 +119,21 @@ Giver.prototype._next_period = function() {
 Giver.prototype.get_data = function(cb) {
 	var _this = this;
 	
+	async.parallel([
+		_this.get_ts_data.bind(_this),
+		_this.get_grid_data.bind(_this)
+		// this.get_image_data
+	], function (err, results) {
+		// Combine results
+		cb(
+			_.reduce(results, function(a, b) {return _.extend(a, b)}, {})
+		)
+	})
+}
+
+Giver.prototype.get_ts_data = function(cb) {
+	var _this = this;
+	console.log(_this.current_date)
 	var query = {
 		"_source" : ['gftime'],
 		"query" : {
@@ -79,16 +145,95 @@ Giver.prototype.get_data = function(cb) {
 			}
 		}
 	}
-	console.log(JSON.stringify(query));
 	
 	this.client.search({
 		index : 'instagram',
 		type  : 'baltimore',
 		body  : query
 	}).then(function(response) {
-		cb({"close" : response.hits.total, "date" : _this.current_date});
+		cb(null, {"count" : response.hits.total, "date" : _this.current_date});
 	});
 }
+
+Giver.prototype.get_image_data = function(cb) {
+	var _this = this;
+	
+	var query = {
+		"query" : {
+			"range" : {
+				"gftime" : {
+					"gte" : _this.current_date,
+					"lte" : dateAdd(_this.current_date, _this.interval, 1)
+				}
+			}
+		}
+	}
+	
+	this.client.search({
+		index : 'instagram',
+		type  : 'baltimore',
+		body  : query
+	}).then(function(response) {
+		var out = _.chain(response.hits.hits).map(function(hit) {
+			return {
+				'loc' : {
+					'lat' : hit._source.location.latitude,
+					'lon' : hit._source.location.longitude,
+				},
+				'img_url' : hit._source.images.low_resolution.url,
+				'id'      : hit._source.id
+			}
+		}).value()
+		cb(null, {'images' : out});
+	});
+}
+
+Giver.prototype.get_grid_data = function(cb) {
+	
+	var query = {
+		"size" : 0,
+		"query": {
+			"filtered": {
+				"query" : {
+					"range" : {
+						"gftime" : {
+							"gte" : this.current_date,
+							"lte" : dateAdd(this.current_date, this.interval, 1)							
+						}
+					}
+				},
+				"filter": {
+					"geo_bounding_box": {
+						"gfloc": {
+							"top_left"     : this.top_left,
+							"bottom_right" : this.bottom_right
+						}
+					}
+				}
+			}
+		},
+		"aggs": {
+			"locs": {
+				"geohash_grid": {
+					"field"     : "gfloc",
+					"precision" : this.grid_precision,
+					"size"      : 10000
+				}
+			}
+		}
+	}
+		
+	this.client.search({
+		index : 'instagram',
+		type  : 'baltimore',
+		body  : query
+	}).then(function(response) {
+		var buckets = response.aggregations.locs.buckets;
+		var out     = _.map(buckets, function(x) { return geohash_to_geojson(x['key'], {'count' : x['doc_count']}); })
+		cb(null, {'grid' : {"type" : "FeatureCollection", "features" : out}});
+	});
+}
+
 
 function dateAdd(date, interval, units) {
   var ret = new Date(date); //don't change original date

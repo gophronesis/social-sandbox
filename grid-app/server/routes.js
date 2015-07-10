@@ -3,6 +3,14 @@ module.exports = function(app, client) {
     var _        = require('underscore')._;
    	var ngeohash = require('ngeohash');
    	
+    // app.post('/get_grid', function(req, res) {
+    //     var d = req.body;
+        
+    //     res.send({
+    //         'hashes' : ngeohash.bboxes(d.bottom_right.lat, d.bottom_rightlon, d.top_left.lat, d.top_left.lon)
+    //     })
+    // })
+    
     app.post('/get_data', function(req, res) {
 
     	client.search({
@@ -65,5 +73,7 @@ module.exports = function(app, client) {
     		res.send({'data' : data, 'utimes' : utimes})
     	})
     });
-       
 }
+
+
+

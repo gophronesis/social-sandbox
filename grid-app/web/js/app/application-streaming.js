@@ -12,8 +12,43 @@ $(document).ready(function() {
 	});
 	// </draw-map>
 
-	// ---------- Grid ----------
+	// <socket>
+	var socket = io.connect('http://localhost:3000/');
+	socket.on('give', giver_handler);
+	
+	var line_data = []
+	var grid;
+	function giver_handler(data) {
+		
+		
+		// Draw lines
+		d3.select('#line_svg').remove();
+		line_data.push({'date' : data.date, 'count' : data.count});
+		draw_line(line_data);
+		
+		// Show images
+	    // _.map(data.images, function(img) {
+	    // 	console.log(img)
+	    //   draw_image(img);
+	    // });
+	
+		// Grid
+		if(!grid) {
+			grid = init_grid(data.grid)
+			reset_grid(grid)
+			map.on("viewreset", function() {
+				reset_grid(grid)
+			});
+		} else {
+			console.log('redrawing')
+			draw_grid(grid, data.grid)
+		}
+		
 
+	}
+	// </socket>
+
+// <grid>
 	// Drawing grid
 	function make_turf_grid() {
 		var extent     = [-76.6167 - .1, 39.2833 - .1, -76.6167 + .1, 39.2833 + .1];
@@ -23,43 +58,50 @@ $(document).ready(function() {
 		return turf_data;
 	}
 
-	function init_grid(collection) {
-		// Initializing d3 layer
-		var svg = d3.select(map.getPanes().overlayPane).append("svg");
-		var g   = svg.append("g").attr("class", "leaflet-zoom-hide");
 
-		// Project onto map
-		function projectPoint(x, y) {
-			var point = map.latLngToLayerPoint(new L.LatLng(y, x));
-			this.stream.point(point.x, point.y);
-		}
+	// Project onto map
+	function projectPoint(x, y) {
+		var point = map.latLngToLayerPoint(new L.LatLng(y, x));
+		this.stream.point(point.x, point.y);
+	}
 	
-		var transform  = d3.geo.transform({point: projectPoint});
-		var path       = d3.geo.path().projection(transform);
+	var project = d3.geo.path().projection(d3.geo.transform({point: projectPoint}));
 
-		// Actual grid cells
-		var feature = g.selectAll("path").data(collection.features).enter().append("path");
-
-		return {
-			svg        : svg,
-			g          : g,
-			path       : path,
-			feature    : feature,
-			collection : collection
+	function init_grid(grid_data) {
+		// Initializing d3 layer
+		if(grid_data.features.length > 0) {
+			var svg     = d3.select(map.getPanes().overlayPane).append("svg");
+			var g       = svg.append("g").attr("class", "leaflet-zoom-hide");
+			var feature = g.selectAll("path").data(grid_data.features).enter().append("path");
+			
+			console.log('init grid')
+			return {
+				svg        : svg,
+				g          : g,
+				feature    : feature,
+				grid_data  : grid_data
+			}			
 		}
 	}
 	
-	function draw_grid(grid) {
-		grid.feature.attr('d', grid.path)
-			.attr('opacity', function() {
-				return Math.random()
+	// This works, but it's slow... Seems like we should just be able to change
+	// the property of the data
+	// Could probably match an ID of the underlying data to the updated data...
+	function draw_grid(grid, data) {
+		grid.g.selectAll("path").remove()
+		var feature = grid.g.selectAll("path").data(data.features).enter().append("path");
+		
+		feature.attr('d', project)
+			.attr('opacity', function(d) {
+				// return Math.random()
+				return d.properties.count;
 			})
 			.attr('fill', 'red')
 	}
 
+	// Move D3 with map
 	function reset_grid(grid) {
-		// Move D3 with map
-		var bounds      = grid.path.bounds(collection),
+		var bounds      = project.bounds(grid.grid_data),
 		    topLeft     = bounds[0],
 		    bottomRight = bounds[1];
 		  
@@ -73,41 +115,41 @@ $(document).ready(function() {
 		draw_grid(grid)
 	}
 
-	var collection = make_turf_grid();
+	// var grid_data = make_turf_grid();
+	// console.log(JSON.stringify(grid_data.features[0]))
 	
-	var grid = init_grid(collection)
+	// var d = {"type":"Feature","geometry":{"type":"Polygon",
+	// 	"coordinates":[[[-76.71669999999999,39.183299999999996],[-76.71669999999999,39.19053431559508],[-76.70736694690846,39.19053431559508],[-76.70736694690846,39.183299999999996],[-76.71669999999999,39.183299999999996]]]},
+	// 	"properties":{}}
+	// var d = {"type":"Feature","geometry":{"type":"Polygon", 
+	// 	"coordinates":[[[-76.728515625,39.1552734375],[-76.728515625,39.19921875],[-76.6845703125,39.19921875],[-76.6845703125,39.1552734375],[-76.728515625,39.1552734375]]],
+	// 	"properties" : {}
+	// }}
 	
-	// var ts = init_line()
+	// console.log(grid_data)
+	// var grid_data = {"type":"FeatureCollection","features":[d]}
+	// var grid = init_grid(grid_data)
 	
-	function reset() {
-		reset_grid(grid);
-		// reset_line(ts);
-	}
-	
-	reset();
-	map.on("viewreset", function() {
-		reset_grid(grid)
+	// reset_grid(grid)
+	// map.on("viewreset", function() {
+	// 	reset_grid(grid)
+	// });
+// </GRID>
+
+// <IMG>
+	var imageHash = {};
+	var LeafIcon = L.Icon.extend({
+	    options: {
+	        iconSize:[50, 50],
+	    }
 	});
-
-
-	// ----- Ping Layer ------
-	// Seems like there's no Kafka right now
-	var socket = io.connect('http://localhost:3000/');
 	
-	socket.on('raw', raw_handler);
-	function raw_handler(data) {
-	  try {
-	    _.map(data, function(d) {
-	      addMarker(d);
-	    });
-	  } catch(e) {
-	    console.log('cannot add point!');
-	  }
-	};
-
-	function addMarker(d) {
-		var m = L.marker([d.location.latitude, d.location.longitude], {
-			icon: new LeafIcon({iconUrl: d.images.low_resolution.url,id:d.id})
+	function draw_image(d) {
+		var m = L.marker([d.loc.lat, d.loc.lon], {
+			icon: new LeafIcon({
+				iconUrl : d.img_url,
+				id      : d.id
+			})
 		});
 		m.addTo(map);
 		
@@ -115,9 +157,9 @@ $(document).ready(function() {
 			map.removeLayer(m);
 		}, 600000);
 		
-		imageHash[d.images.low_resolution.url] = d;
+		imageHash[d.img_url] = d;
 		
-		d3.select("img[src=\"" +d.images.low_resolution.url + "\"]").transition()
+		d3.select("img[src=\"" +d.img_url + "\"]").transition()
 			.duration(600000)
 			.style("opacity", 0);
 			
@@ -138,20 +180,21 @@ $(document).ready(function() {
 				window.open(imageHash[this.src].link, '_blank');
 			});
 	}
+//</IMG>
 
 	// ----- Interaction ------
 
 	// Handle key presses
 	$(document).keypress(function(e) {
 	    if((e.keyCode || e.which) == 46) {
-		    reset()
+		    reset_grid(grid)
 	    } else if((e.keyCode || e.which) == 44){
-		    reset()
+		    reset_grid(grid)
 	    }
 	});
 
 
-	// ------ Graph --------	
+// <GRAPH>
 	function draw_line(data) {
 		var w = $('.bottom-bar').width(),
 		    h = $('.bottom-bar').height();
@@ -179,9 +222,9 @@ $(document).ready(function() {
 
 		var path = d3.svg.line()
 		    .x(function(d) { return x(d.date); })
-		    .y(function(d) { return y(d.close); });
+		    .y(function(d) { return y(d.count); });
 
-		var svg = d3.select(".bottom-bar").append("svg").attr("id","the_SVG_ID")
+		var svg = d3.select(".bottom-bar").append("svg").attr("id","line_svg")
 		    .attr("width", width + margin.left + margin.right)
 		    .attr("height", height + margin.top + margin.bottom)
 		  .append("g")
@@ -191,12 +234,12 @@ $(document).ready(function() {
 		_data = _.map(data, function(d) {
 			return {
 				"date"  :  parseDate(d.date),
-				"close" : + d.close
+				"count" : + d.count
 			}
 		});
 
 		x.domain(d3.extent(_data, function(d) { return d.date; }));
-		y.domain(d3.extent(_data, function(d) { return d.close; }));
+		y.domain(d3.extent(_data, function(d) { return d.count; }));
 			
 		svg.append("g")
 		  .attr("class", "x axis")
@@ -209,14 +252,5 @@ $(document).ready(function() {
 			  .attr("class", "line")
 			  .attr('stroke', 'red');
 	}
-	
-	var all_data = []
-	var svg = undefined;
-	function giver_handler(data) {
-		d3.select('#the_SVG_ID').remove();
-		all_data.push(data)
-		draw_line(all_data);
-	}
-	
-	socket.on('give', giver_handler);
+// </GRAPH>
 })
