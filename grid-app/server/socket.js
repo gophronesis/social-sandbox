@@ -4,6 +4,7 @@ module.exports = function(app, server, client, config) {
   // var kafka = require('kafka-node');
   var _     = require('underscore');
   var Giver = require('./giver');
+  var request = require('request');
 
   // var config = {
   //   'KAFKA'      : '10.3.2.75:2181',
@@ -29,7 +30,16 @@ module.exports = function(app, server, client, config) {
     // Initiating scraping
     socket.on('init_scrape', function(data, callback) {
       console.log('initating scrape :: ', data);
-      // STUB FOR JUSTIN
+      request( {
+        url: "http://10.3.2.75:3000/scrape",
+        method: "POST",
+        json: true,
+        headers: {
+            "content-type": "application/json",
+        },
+        body: data
+      });
+      
       callback({'status' : 'ok'});
     })
     
