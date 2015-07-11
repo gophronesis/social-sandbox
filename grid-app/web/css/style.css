@@ -5,6 +5,11 @@
     padding-top    : 50px;
     padding-bottom : 60px;
   }
+
+  .leaflet-control-container {
+    position   : absolute;
+    top: 50px;
+  }
   
   .modal-title {
     color : yellow;
@@ -42,7 +47,7 @@
 
   .side-bar {
     position   : absolute;
-    top        : 0px;
+    top        : 50px;
     right      : 0px;
     bottom     : 200px;
     width      : 250px;
@@ -53,7 +58,7 @@
   }
   
   .side-bar-image {
-    width : 33%;
+    width : 25%;
     border : 1px solid grey;
   }
   

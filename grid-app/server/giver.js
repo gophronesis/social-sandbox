@@ -193,7 +193,7 @@ Giver.prototype.get_image_data = function(cb) {
 					'lat' : hit._source.location.latitude,
 					'lon' : hit._source.location.longitude,
 				},
-				'img_url' : hit._source.images.low_resolution.url,
+				'img_url' : hit._source.images.thumbnail.url,
 				'id'      : hit._source.id
 			}
 		}).value()

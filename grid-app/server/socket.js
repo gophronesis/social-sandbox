@@ -39,7 +39,7 @@ module.exports = function(app, server, client, config) {
       client.indices.getMapping({
         index : config['index']
       }).then(function(response) {
-        callback({'types' : _.keys(response[config['index']]['mappings'])});
+        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'baltimore')})});
       });
     });
     

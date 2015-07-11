@@ -39,16 +39,28 @@ $(document).ready(function() {
 			console.log('e', e);
 			drawnItems.addLayer(e.layer);
 			$('#init-scrape-btn').css('display', 'inline');
+			$('#analyze-btn').css('display', 'inline');
 		});
 		
 		map.on('draw:deleted', function(e) {
 			if(drawnItems.getLayers().length == 0) {
-				$('#init-scrape-btn').css('display', 'none');		
+				$('#init-scrape-btn').css('display', 'none');
+				$('#analyze-btn').css('display', 'none');
 			}
 		})
 	}
 
+	make_drawControl();
+
 // </draw-map>
+
+// <analyzing area>
+function analyze_area(area) {
+	// todo
+}
+// <analyzing area>
+
+
 
 // <scrape-management>
 
@@ -86,6 +98,7 @@ function set_scrape(scrape_name) {
 	var grid;
 	function giver_handler(data) {
 		
+		console.log(data);
 		// Draw lines
 		d3.select('#line_svg').remove();
 		line_data.push({'date' : data.date, 'count' : data.count});
@@ -203,6 +216,9 @@ function set_scrape(scrape_name) {
 	
 	function sidebar_image(d) {
 		$('.side-bar').prepend('<img id="' + d.id + '" src="' + d.img_url + '" class="side-bar-image" />');
+		$('#' + d.id).click(function(){
+			console.log(d.loc.lat);
+		});
 	}
 	
 	function draw_image(d) {
@@ -252,6 +268,10 @@ function set_scrape(scrape_name) {
 	    } else if((e.keyCode || e.which) == 44){
 		    reset_grid(grid)
 	    }
+	});
+
+	$("#datepicker").click(function(){
+		$("#datepicker").pickadate();
 	});
 
 
@@ -311,7 +331,7 @@ function set_scrape(scrape_name) {
 			  .datum(_data)
 			  .attr('d', path)
 			  .attr("class", "line")
-			  .attr('stroke', 'red');
+			  .attr('stroke', 'blue');
 	}
 // </GRAPH>
 
@@ -327,13 +347,22 @@ function set_scrape(scrape_name) {
 	$('#init-scrape-btn').on('click', function() {
 		$("#init-modal").modal('show');
 	});
+
+	$('#analyze-btn').on('click', function() {
+		/*
+			STUB FOR LOADING SIDE BAR WITH IMAGES, POPULATING TIME SERIES, AND POPULATING EVENTS FOR GIVEN AREA.
+			THIS SAME FUNCTION SHOULD BE USED WHEN CLICKING AN 'EVENT'.  ONLY DIFFERENCE IS ENTRY POINT.
+		*/
+		console.log(drawnItems.getLayers()[0].getBounds());
+		analyze_area(drawnItems.getLayers()[0].getBounds());
+	});
 	
 	$('#init-modal-form-submit').on('click',function() {
 		socket.emit('init_scrape', {
 			"name"           : $( "#init-modal-form-name" ).val(),
 			"comments"       : $( "#init-modal-form-comment" ).val(),
 			"leaflet_bounds" : drawnItems.getLayers()[0].getBounds(), // Rectangle bounds
-			"time"           : + new Date(),
+			"time"           : $("#init-modal-form-start-date").val(),
 			"user"           : "dev_user"
 		}, function(response) {
 			console.log('response from init_scrape :: ', response);
@@ -375,8 +404,9 @@ function set_scrape(scrape_name) {
 // </events>
 
 // <init>
-$('#first-modal').modal('show');
+//$('#first-modal').modal('show');
 $('#init-scrape-btn').css('display', 'none');
+$('#analyze-btn').css('display', 'none');
 // </init>
 
 })
