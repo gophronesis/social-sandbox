@@ -1,4 +1,6 @@
 
+var boxes_to_names = {};
+
 $(document).ready(function() {
 // <draw-map>
 	var baseLayer = L.tileLayer('https://{s}.tiles.mapbox.com/v3/cwhong.map-hziyh867/{z}/{x}/{y}.png', {
@@ -41,6 +43,10 @@ $(document).ready(function() {
 			$('#init-scrape-btn').css('display', 'inline');
 			$('#analyze-btn').css('display', 'inline');
 		});
+
+		map.on('click', function (e) {
+			console.log('e', e);
+		});
 		
 		map.on('draw:deleted', function(e) {
 			if(drawnItems.getLayers().length == 0) {
@@ -64,6 +70,16 @@ function analyze_area(area) {
 
 // <scrape-management>
 
+function set_scrapes() {
+	socket.emit('get_existing', function(response) {
+			console.log('response', response)
+			_.map(response.types, function(x) {
+				set_scrape(x);
+			});
+			
+		});
+}
+
 function set_scrape(scrape_name) {
 	socket.emit('set_scrape', scrape_name, function(response) {
 		
@@ -74,17 +90,28 @@ function set_scrape(scrape_name) {
 		var geo_bounds = L.latLngBounds(southWest, northEast);
 		
 		// Color the background of the region, for now at least
-		L.rectangle(geo_bounds, {
-			color       : "blue",
-			weight      : 1,
-			fillOpacity : .1
-		}).addTo(map)
+		var rec = L.rectangle(geo_bounds, {
+			color       : "red",
+			weight      : 2,
+			fillOpacity : 0
+		});
 		
-		map.fitBounds(geo_bounds);
+
+		rec.on('click', function(e){
+			console.log(e.target._leaflet_id);
+			console.log('rect',boxes_to_names[e.target._leaflet_id]);
+			socket.emit('playback', boxes_to_names[e.target._leaflet_id], function(response) {
+			});
+		});
+
+		rec.addTo(map)
+		boxes_to_names[rec._leaflet_id] = response.scrape_name;
 		
-		$('#scrape-name').html(response.scrape_name);
-		$('#scrape-start-date').html(response.temp_bounds.start_date);
-		$('#scrape-end-date').html(response.temp_bounds.end_date);
+		//map.fitBounds(geo_bounds);
+		
+		//$('#scrape-name').html(response.scrape_name);
+		//$('#scrape-start-date').html(response.temp_bounds.start_date);
+		//$('#scrape-end-date').html(response.temp_bounds.end_date);
 	});
 }
 
@@ -106,7 +133,7 @@ function set_scrape(scrape_name) {
 		
 		// Show images
 	    _.map(data.images, function(img) {
-			// draw_image(img);
+			draw_image(img);
 			sidebar_image(img);
 	    });
 	
@@ -232,12 +259,12 @@ function set_scrape(scrape_name) {
 		
 		setTimeout(function(){ 
 			map.removeLayer(m);
-		}, 600000);
+		}, 6000);
 		
 		imageHash[d.img_url] = d;
 		
 		d3.select("img[src=\"" +d.img_url + "\"]").transition()
-			.duration(600000)
+			.duration(6000)
 			.style("opacity", 0);
 			
 		d3.selectAll(".leaflet-marker-icon")
@@ -268,10 +295,6 @@ function set_scrape(scrape_name) {
 	    } else if((e.keyCode || e.which) == 44){
 		    reset_grid(grid)
 	    }
-	});
-
-	$("#datepicker").click(function(){
-		$("#datepicker").pickadate();
 	});
 
 
@@ -407,6 +430,7 @@ function set_scrape(scrape_name) {
 //$('#first-modal').modal('show');
 $('#init-scrape-btn').css('display', 'none');
 $('#analyze-btn').css('display', 'none');
+set_scrapes();
 // </init>
 
 })

@@ -49,21 +49,28 @@ module.exports = function(app, server, client, config) {
       client.indices.getMapping({
         index : config['index']
       }).then(function(response) {
-        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'baltimore')})});
+        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'baltimore' || d == 'isil' || d == 'geo' )})});
       });
     });
     
     // Choosing an existing scrape
     socket.on('set_scrape', function(scrape_name, callback) {
+      console.log('set_scrape',scrape_name);
       giver.set_scrape(scrape_name, function(scrape) {
         
         // Send information about scrape back to front end
         callback(scrape);
         
         // Start the scrape playback
-        giver.start();
+        //giver.start();
       });
     });
+
+    socket.on('playback', function(scrape_name, callback) {
+      giver.start(scrape_name);
+    });
+
+
     
     
     

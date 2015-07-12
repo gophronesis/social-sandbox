@@ -54,7 +54,7 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 		_this.geo_bounds = response.aggregations.geo_bounds.bounds;
 		
 		cb({
-			"scrape_name" : _this.scrape_name,
+			"scrape_name" : scrape_name,
 			"geo_bounds"  : response.aggregations.geo_bounds.bounds,
 			"temp_bounds" : {
 				"start_date" : response.aggregations.temp_bounds.min_as_string,
@@ -64,7 +64,9 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 	});
 }
 
-Giver.prototype.start = function() {
+Giver.prototype.start = function(scrape_name) {
+	var _this = this;
+	this.scrape_name = scrape_name;
 	if(this.scrape_name) {
 		console.log('starting giver...')
 		this.running  = true;
@@ -193,8 +195,9 @@ Giver.prototype.get_image_data = function(cb) {
 					'lat' : hit._source.location.latitude,
 					'lon' : hit._source.location.longitude,
 				},
-				'img_url' : hit._source.images.thumbnail.url,
-				'id'      : hit._source.id
+				'img_url' : hit._source.images.low_resolution.url,
+				'id'      : hit._source.id,
+				'link'    : hit._source.link
 			}
 		}).value()
 		cb(null, {'images' : out});
