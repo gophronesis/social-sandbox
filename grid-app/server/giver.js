@@ -64,9 +64,10 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 	});
 }
 
-Giver.prototype.start = function(scrape_name) {
+Giver.prototype.start = function(scrape_obj) {
 	var _this = this;
-	this.scrape_name = scrape_name;
+	this.scrape_name = scrape_obj.scrape_name;
+	this.set_temp_bounds({"start_date" : new Date(scrape_obj.temp_bounds.start_date), "end_date" : new Date(scrape_obj.temp_bounds.end_date)});
 	if(this.scrape_name) {
 		console.log('starting giver...')
 		this.running  = true;
@@ -98,7 +99,7 @@ Giver.prototype.give = function() {
 			// });
 		}
 		
-		if(_this.current_date.getTime() == _this.temp_bounds.end_date.getTime()) {
+		if(_this.current_date.getTime() >= _this.temp_bounds.end_date.getTime()) {
 			_this.stop();
 		}
 		

@@ -105,7 +105,7 @@ function set_scrape(scrape_name) {
 		});
 
 		rec.addTo(map)
-		boxes_to_names[rec._leaflet_id] = response.scrape_name;
+		boxes_to_names[rec._leaflet_id] = response;
 		
 		//map.fitBounds(geo_bounds);
 		

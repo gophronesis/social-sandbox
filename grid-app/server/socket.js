@@ -66,8 +66,8 @@ module.exports = function(app, server, client, config) {
       });
     });
 
-    socket.on('playback', function(scrape_name, callback) {
-      giver.start(scrape_name);
+    socket.on('playback', function(scrape_obj, callback) {
+      giver.start(scrape_obj);
     });
 
 
