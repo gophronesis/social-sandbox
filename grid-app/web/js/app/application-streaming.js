@@ -98,8 +98,9 @@ function set_scrape(scrape_name) {
 		
 
 		rec.on('click', function(e){
-			console.log(e.target._leaflet_id);
-			console.log('rect',boxes_to_names[e.target._leaflet_id]);
+			$('#scrape-name').html(boxes_to_names[e.target._leaflet_id].scrape_name);
+		    $('#scrape-start-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.start_date);
+		    $('#scrape-end-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.end_date);
 			socket.emit('playback', boxes_to_names[e.target._leaflet_id], function(response) {
 			});
 		});
@@ -109,9 +110,7 @@ function set_scrape(scrape_name) {
 		
 		//map.fitBounds(geo_bounds);
 		
-		//$('#scrape-name').html(response.scrape_name);
-		//$('#scrape-start-date').html(response.temp_bounds.start_date);
-		//$('#scrape-end-date').html(response.temp_bounds.end_date);
+		
 	});
 }
 
