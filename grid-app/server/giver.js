@@ -167,6 +167,7 @@ Giver.prototype.get_ts_data = function(cb) {
 		type  : this.scrape_name,
 		body  : query
 	}).then(function(response) {
+		console.log(response);
 		cb(null, {"count" : response.hits.total, "date" : _this.current_date});
 	});
 }
@@ -198,7 +199,8 @@ Giver.prototype.get_image_data = function(cb) {
 				},
 				'img_url' : hit._source.images.low_resolution.url,
 				'id'      : hit._source.id,
-				'link'    : hit._source.link
+				'link'    : hit._source.link,
+				'user'    : hit._source.user.username
 			}
 		}).value()
 		cb(null, {'images' : out});
@@ -237,7 +239,7 @@ Giver.prototype.get_grid_data = function(cb) {
 		}
 	}
 		
-	console.log(JSON.stringify(query));
+	//console.log(JSON.stringify(query));
 	
 	this.client.search({
 		index : this.index,

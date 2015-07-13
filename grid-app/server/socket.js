@@ -25,7 +25,7 @@ module.exports = function(app, server, client, config) {
     giver.set_temp_bounds({"start_date" : new Date('2015-04-01'), "end_date" : new Date('2015-04-30')});
     
     socket.on('stop_giver', function()  { giver.stop() });
-    socket.on('start_giver', function() { giver.start() });
+    socket.on('start_giver', function(one_to_scrape) { giver.start(one_to_scrape) });
     
     // Initiating scraping
     socket.on('init_scrape', function(data, callback) {
@@ -49,7 +49,7 @@ module.exports = function(app, server, client, config) {
       client.indices.getMapping({
         index : config['index']
       }).then(function(response) {
-        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'baltimore' || d == 'isil' || d == 'geo' )})});
+        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'cleveland' || d == 'baltimore' || d == 'isil' || d == 'ny' || d == 'dc')})});
       });
     });
     
@@ -71,11 +71,23 @@ module.exports = function(app, server, client, config) {
     });
 
 
-    
-    
-    
     socket.on('disconnect', function(){
       giver.stop();
+    });
+
+    socket.on('scrape_user', function(user, callback){
+      console.log(user);
+        request( {
+          url: "https://instagram.com/" + user + "/?__a=1",
+          method: "GET",
+          json: true,
+          headers: {
+              "content-type": "application/json",
+          }
+        }, function optionalCallback(err, httpResponse, body) {
+              callback(body);
+           }
+        );
     });
     
     // // Forward Kafka -> socket.io

@@ -1,6 +1,8 @@
 
 var boxes_to_names = {};
 
+var one_to_scrape = undefined;
+
 $(document).ready(function() {
 // <draw-map>
 	var baseLayer = L.tileLayer('https://{s}.tiles.mapbox.com/v3/cwhong.map-hziyh867/{z}/{x}/{y}.png', {
@@ -101,12 +103,13 @@ function set_scrape(scrape_name) {
 			$('#scrape-name').html(boxes_to_names[e.target._leaflet_id].scrape_name);
 		    $('#scrape-start-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.start_date);
 		    $('#scrape-end-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.end_date);
-			socket.emit('playback', boxes_to_names[e.target._leaflet_id], function(response) {
-			});
+		    map.fitBounds(geo_bounds);
+		    one_to_scrape = response;
 		});
 
 		rec.addTo(map)
 		boxes_to_names[rec._leaflet_id] = response;
+		
 		
 		//map.fitBounds(geo_bounds);
 		
@@ -234,6 +237,7 @@ function set_scrape(scrape_name) {
 
 // <IMG>
 	var imageHash = {};
+	var selectedImages = {};
 	var LeafIcon = L.Icon.extend({
 	    options: {
 	        iconSize:[50, 50],
@@ -242,8 +246,30 @@ function set_scrape(scrape_name) {
 	
 	function sidebar_image(d) {
 		$('.side-bar').prepend('<img id="' + d.id + '" src="' + d.img_url + '" class="side-bar-image" />');
+		$('#' + d.id).dblclick(function(){
+			d3.select(this).style("border-color","red");
+			selectedImages[d.id] = d;
+			window.open(d.link, '_blank');
+		});
+
 		$('#' + d.id).click(function(){
-			console.log(d.loc.lat);
+			console.log(d);
+			if (d.id in selectedImages) {
+				d3.select(this).style("border-color","grey");
+				delete selectedImages[d.id];
+			}
+			else {
+				d3.select(this).style("border-color","red");
+				selectedImages[d.id] = d;
+			}
+			if (_.keys(selectedImages).length == 0){
+				$('#comment-btn').css('display', 'none');
+				$('#show-user-btn').css('display', 'none');
+			}
+			else {
+				$('#comment-btn').css('display', 'inline');
+				$('#show-user-btn').css('display', 'inline');
+			}
 		});
 	}
 	
@@ -359,7 +385,9 @@ function set_scrape(scrape_name) {
 
 // <events>
 	$('#start-stream').on('click', function() {
-		socket.emit('start_giver');
+		
+		socket.emit('playback', one_to_scrape, function(response) {
+		});
 	});
 
 	$('#stop-stream').on('click', function() {
@@ -368,6 +396,15 @@ function set_scrape(scrape_name) {
 
 	$('#init-scrape-btn').on('click', function() {
 		$("#init-modal").modal('show');
+	});
+
+	$('#show-user-btn').on('click', function() {
+		console.log('here');
+		_.map(_.uniq(_.map(_.values(selectedImages),function(d){ return d.user;})), function(user) {
+			socket.emit('scrape_user', user, function(response) {
+				console.log('response from scrape_user :: ', response);
+			});
+		});	
 	});
 
 	$('#analyze-btn').on('click', function() {
@@ -429,6 +466,8 @@ function set_scrape(scrape_name) {
 //$('#first-modal').modal('show');
 $('#init-scrape-btn').css('display', 'none');
 $('#analyze-btn').css('display', 'none');
+$('#comment-btn').css('display', 'none');
+$('#show-user-btn').css('display', 'none');
 set_scrapes();
 // </init>
 
