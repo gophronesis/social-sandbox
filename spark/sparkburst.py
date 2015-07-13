@@ -10,10 +10,11 @@ from nltk.corpus import stopwords
 import pybursts
 from itertools import chain
 import pandas as pd, numpy as np
+import geohash
 ewma = pd.stats.moments.ewma
 import math
-
-
+from collections import Counter
+import operator
 
 def filt(a):
     if a[0] != '' and a[1] > 1 and a[0] not in stopwords.words('english'):
@@ -28,9 +29,9 @@ def send(x):
 
 
 #process_ts
-def process_ts(data):
+def process(data):
     """Returns the timestamps in which a 3 standard deviation from the ewma occured"""
-    dates=np.array(map(lambda x: float(x), data[1])).astype('datetime64[s]')
+    dates=np.array(map(lambda x: float(x), data['timestamp'])).astype('datetime64[s]')
     ts=pd.DataFrame(dates,index=dates)
     #bin by every 30 minutes 
     bin_ts=ts.groupby(pd.TimeGrouper('30T')).size()
@@ -38,10 +39,17 @@ def process_ts(data):
     ma = ewma(bin_ts,span=6)
     alpha = 2.0/(7.0)
     mean = np.mean(ma)
-    factor = 3.0*np.std(ma)
+    factor = 3*np.std(ma)
     ucl = mean+factor
     lcl = mean-factor
-    return (bin_ts[ma>ucl])
+    tags=dict(Counter(data['tags']))
+    users=dict(Counter(data['users']))
+    toptags=dict(sorted(tags.iteritems(), key=operator.itemgetter(1), reverse=True)[:5])
+    topusers=dict(sorted(users.iteritems(), key=operator.itemgetter(1), reverse=True)[:5]) 
+    events=list(bin_ts.index[np.logical_and(bin_ts.values[:]>ucl,bin_ts.values[:]>10)])
+    events=map(lambda x:str((np.datetime64(x).astype('uint64')/1e6).astype('uint32')),events)
+    counts=list(bin_ts.ix[np.logical_and(bin_ts.values[:]>ucl,bin_ts.values[:]>10)])
+    return {'events':events,'counts':counts,'tags':toptags,'users':topusers}
 
 
 def returnText(x):
@@ -63,12 +71,14 @@ if __name__ == "__main__":
     #lines = 
     lines=kvs.map(lambda x: json.loads(x[1])[0]).filter(lambda x: 'created_time' in x.keys())
     #.map(lambda x: x['created_time'])
-    counts=kvs.map(lambda x: json.loads(x[1])[0]).filter(lambda x:'created_time' in x.keys()).map(lambda x: (("%.2f" % float(x['location']['latitude']),"%.2f" % float(x['location']['longitude'])),[str(x['created_time'])]))\
-    .reduceByKey(lambda x,y: x+y)#.map(lambda x: sorted(map(int,x[1])))
+    counts=kvs.map(lambda x: json.loads(x[1])[0]).filter(lambda x:'created_time' in x.keys())\
+    .map(lambda x: (geohash.encode(float(x['location']['latitude']),float(x['location']['longitude']),6),x)).map(lambda x: (x[0],{'tags':x[1]['tags'],'users':[x[1]['user']['username']],'timestamp':[x[1]['created_time']]}))\
+    .reduceByKey(lambda x,y: {'users':x['users']+y['users'],'tags':x['tags']+y['tags'],'timestamp':x['timestamp']+y['timestamp']}).map(lambda x: (x[0],process(x[1]))).filter(lambda x: x[1]['events']!=[])
 #.map(lambda x:pybursts.kleinberg(x,s=2,gamma=0.5))
-    ma_all=counts.map(lambda x: (x[0],process_ts(x)))
-    ma_all.pprint()
-    bursts=lines.map(lambda x: x.split('\n')).reduce(lambda x,y: sorted(map(int,x+y))).map(lambda x: pybursts.kleinberg(x,s=2,gamma=0.5))
+    output=counts.map(lambda x:dict({'geohash':x[0]}.items()+x[1].items()))
+    #ma_all=counts.map(lambda x: (x[0],process_ts(x)))
+    #ma_all.pprint()
+    #bursts=lines.map(lambda x: x.split('\n')).reduce(lambda x,y: sorted(map(int,x+y))).map(lambda x: pybursts.kleinberg(x,s=2,gamma=0.5))
    #reduceByWindow(lambda x,y: map(int,list(chain(*zip(x,y))))\
     #            ,lambda x,y: map(int,list(chain(*zip(x,y)))),240,120)
     #count = lines.reduce(lambda a,b: a+b)
@@ -79,7 +89,7 @@ if __name__ == "__main__":
     #producer.send_messages("instacounts","yo")
     #counts.pprint()
     #bursts.foreachRDD(lambda rdd: rdd.foreachPartition(send))
-    
+    output.saveAsTextFiles('/home/gmueller/social-sandbox/tmp')       
 
     ssc.start()
     ssc.awaitTermination()
