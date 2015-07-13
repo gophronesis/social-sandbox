@@ -49,7 +49,7 @@ module.exports = function(app, server, client, config) {
       client.indices.getMapping({
         index : config['index']
       }).then(function(response) {
-        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'cleveland' || d == 'baltimore' || d == 'isil' || d == 'ny' || d == 'dc')})});
+        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'boston' || d == 'ukraine' || d == 'southkorea' || d == 'cleveland' || d == 'baltimore' || d == 'isil' || d == 'ny' || d == 'dc')})});
       });
     });
     
