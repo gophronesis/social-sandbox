@@ -62,21 +62,6 @@ $(document).ready(function() {
 
 // </draw-map>
 
-// <analyzing area>
-function analyze_area(area) {
-	socket.emit('analyze_area', area, function(response) {
-		console.log('analyze_area :: ', response)
-
-		d3.select('#line_svg').remove();
-		line_data = response.timeseries;
-		draw_line(line_data);
-		
-	});
-}
-// <analyzing area>
-
-
-
 // <scrape-management>
 // This has side-effects on the server
 function load_scrapes() {
@@ -137,6 +122,7 @@ function set_scrape(scrape_name) {
 
 // </scrape-management>
 
+
 // <socket>
 	var socket = io.connect('http://localhost:3000/');
 	
@@ -168,6 +154,26 @@ function set_scrape(scrape_name) {
 		
 	}
 // </socket>
+
+// <analyzing area>
+function analyze_area(area) {
+	socket.emit('analyze_area', area, function(data) {
+		console.log('analyze_area :: ', data)
+
+		d3.select('#line_svg').remove();
+		line_data = data.timeseries;
+		draw_line(line_data);
+		
+		if(!grid) {
+			grid = init_grid(data.grid)
+			reset_grid(grid)
+		} else {
+			draw_grid(grid, data.grid)
+		}
+
+	});
+}
+// <analyzing area>
 
 // <grid> -- The d3 here is sloppier than I would hope
 
@@ -404,14 +410,17 @@ function set_scrape(scrape_name) {
 
 // <events>
 	$('#start-stream').on('click', function() {		
-		socket.emit('playback', function(response) {
+		socket.emit('start_giver', function() {
+			console.log('start_giver :: ');
 			line_data = [];
-			// ... nothing yet ...
 		});
 	});
 
 	$('#stop-stream').on('click', function() {
-		socket.emit('stop_giver');
+		socket.emit('stop_giver', function() {
+			console.log('stop_giver :: ');
+			// ... nothing else yet ...
+		});
 	});
 
 	$('#init-scrape-btn').on('click', function() {
@@ -419,7 +428,6 @@ function set_scrape(scrape_name) {
 	});
 
 	$('#show-user-btn').on('click', function() {
-		console.log('here');
 		_.map(_.uniq(_.map(_.values(selectedImages),function(d){ return d.user;})), function(user) {
 			socket.emit('scrape_user', user, function(response) {
 				console.log('response from scrape_user :: ', response);

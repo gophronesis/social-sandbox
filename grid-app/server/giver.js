@@ -277,8 +277,14 @@ Giver.prototype.get_grid_data = function(cb) {
 Giver.prototype.analyze_area = function(area, cb) {
 	var _this = this;
 	
+	// Convert date formats if necessary
+	if(area._southWest) {
+		area = leaflet2elasticsearch(area)
+	}
+
 	async.parallel([
-		_this.analyze_ts_data.bind(_this, area)
+		_this.analyze_ts_data.bind(_this, area),
+		_this.analyze_grid_data.bind(_this, area)
 	], function (err, results) {
 		cb(
 			_.reduce(results, function(a, b) {return _.extend(a, b)}, {})
@@ -286,15 +292,54 @@ Giver.prototype.analyze_area = function(area, cb) {
 	})
 }
 
-Giver.prototype.analyze_ts_data = function(area, cb) {
+// This repeats get_grid_data pretty heavily
+Giver.prototype.analyze_grid_data = function(area, cb) {
 	
-	console.log('area', area);
-	
-	// Convert date formats if necessary
-	if(area._southWest) {
-		area = leaflet2elasticsearch(area)
+	var query = {
+		// "size" : 0,
+		"query": {
+			"filtered": {
+				"query" : {
+					"range" : {
+						"created_time" : {
+							"gte" : this.temp_bounds.start_date,
+							"lte" : this.temp_bounds.end_date
+						}
+					}
+				},
+				"filter": {
+					"geo_bounding_box": {
+						"geoloc": area
+					}
+				}
+			}
+		},
+		"aggs": {
+			"locs": {
+				"geohash_grid": {
+					"field"     : "geoloc",
+					"precision" : this.grid_precision,
+					"size"      : 10000
+				}
+			}
+		}
 	}
 	
+	this.client.search({
+		index : this.index,
+		type  : this.scrape_name,
+		body  : query,
+        searchType : "count",
+        queryCache : true
+	}).then(function(response) {
+		var buckets = response.aggregations.locs.buckets;
+		var out     = _.map(buckets, function(x) { return geohash2geojson(x['key'], {'count' : x['doc_count']}); })
+		cb(null, {'grid' : {"type" : "FeatureCollection", "features" : out}});
+	});
+}
+
+Giver.prototype.analyze_ts_data = function(area, cb) {
+		
 	var query = {
 		// "size" : 0,
 		"query": {
@@ -319,7 +364,7 @@ Giver.prototype.analyze_ts_data = function(area, cb) {
 				"date_histogram" : {
 					"field"    : "created_time",
 					// "interval" : this.interval
-					"interval" : "day" // HARDCODING TO DAY FOR NOW
+					"interval" : "day" // HARDCODING TO DAY INTERVAL FOR NOW
 				}
 			}
 		}

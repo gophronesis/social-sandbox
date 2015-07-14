@@ -26,8 +26,8 @@ module.exports = function(app, server, client, config) {
     var giver = new Giver(client, socket, config);
     // giver.set_temp_bounds({"start_date" : new Date('2015-04-01'), "end_date" : new Date('2015-04-30')});
     
-    socket.on('stop_giver', function()  { giver.stop() });
-    socket.on('start_giver', function(one_to_scrape) { giver.start(one_to_scrape) });
+    socket.on('stop_giver', function(cb)  { giver.stop(); cb(); });
+    socket.on('start_giver', function(cb) { giver.start(); cb(); });
     
     // Initiating scraping
     socket.on('init_scrape', function(data, callback) {
@@ -91,10 +91,6 @@ module.exports = function(app, server, client, config) {
         console.log('analyze_area :: ', response);
         callback(response)
       });
-    });
-
-    socket.on('playback', function(callback) {
-      giver.start();
     });
 
     socket.on('disconnect', function(){
