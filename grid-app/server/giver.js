@@ -25,11 +25,10 @@ function Giver(client, socket, config) {
 	this._process = undefined;
 }
 
-Giver.prototype.set_scrape = function(scrape_name, cb) {
-	var _this = this;
-	this.scrape_name = scrape_name;
-	
+// Gets the parameters of a scrape
+Giver.prototype.get_scrape = function(scrape_name, cb) {
 	var query = {
+		// "size" : 0,
 		"aggs" : {
 			"geo_bounds" : {
 				"geo_bounds" : {
@@ -43,16 +42,15 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 			}
 		}
 	}
-	
+
 	this.client.search({
-		index : this.index,
-		type  : this.scrape_name,
-		body  : query,
-		searchType : "count"
+		index      : this.index,
+		type       : scrape_name,
+		body       : query,
+        searchType : "count",
+        queryCache : true
 	}).then(function(response) {
-		console.log(response)
-		_this.geo_bounds = response.aggregations.geo_bounds.bounds;
-		
+		// Response
 		cb({
 			"scrape_name" : scrape_name,
 			"geo_bounds"  : response.aggregations.geo_bounds.bounds,
@@ -61,13 +59,32 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 				"end_date"   : response.aggregations.temp_bounds.max_as_string
 			}
 		});
-	});
+	})
 }
 
-Giver.prototype.start = function(scrape_obj) {
+// Gets the parameters of a scrape and saves the state
+Giver.prototype.set_scrape = function(scrape_name, cb) {
 	var _this = this;
-	this.scrape_name = scrape_obj.scrape_name;
-	this.set_temp_bounds({"start_date" : new Date(scrape_obj.temp_bounds.start_date), "end_date" : new Date(scrape_obj.temp_bounds.end_date)});
+	
+	this.get_scrape(scrape_name, function(response) {
+		
+		_this.scrape_name = scrape_name;	
+		// Set parameters
+		_this.geo_bounds = response.geo_bounds;
+		
+		// console.log('new Date(response.aggregations.temp_bounds.max_as_string)',)
+		_this.set_temp_bounds({
+			"start_date" : new Date(response.temp_bounds.start_date),
+			"end_date"   : new Date(response.temp_bounds.end_date)
+		});
+		
+		cb(response)
+
+	})
+}
+
+Giver.prototype.start = function() {
+	var _this = this;
 	if(this.scrape_name) {
 		console.log('starting giver...')
 		this.running  = true;
@@ -118,6 +135,7 @@ Giver.prototype.set_temp_bounds = function(temp_bounds) {
 	return true;
 }
 
+// Time resolution of giver
 Giver.prototype.set_interval = function(interval) {
 	if(this.running) {
 		this.stop();
@@ -132,6 +150,7 @@ Giver.prototype._next_period = function() {
 	return this.current_date;
 }
 
+// Data playback
 Giver.prototype.get_data = function(cb) {
 	var _this = this;
 	
@@ -210,7 +229,7 @@ Giver.prototype.get_image_data = function(cb) {
 Giver.prototype.get_grid_data = function(cb) {
 	
 	var query = {
-		"size" : 0,
+		// "size" : 0,
 		"query": {
 			"filtered": {
 				"query" : {
@@ -244,14 +263,133 @@ Giver.prototype.get_grid_data = function(cb) {
 	this.client.search({
 		index : this.index,
 		type  : this.scrape_name,
-		body  : query
+		body  : query,
+        searchType : "count",
+        queryCache : true
 	}).then(function(response) {
 		var buckets = response.aggregations.locs.buckets;
-		var out     = _.map(buckets, function(x) { return geohash_to_geojson(x['key'], {'count' : x['doc_count']}); })
-		console.log(out);
+		var out     = _.map(buckets, function(x) { return geohash2geojson(x['key'], {'count' : x['doc_count']}); })
 		cb(null, {'grid' : {"type" : "FeatureCollection", "features" : out}});
 	});
 }
+
+// All of the data from a given area
+Giver.prototype.analyze_area = function(area, cb) {
+	var _this = this;
+	
+	// Convert date formats if necessary
+	if(area._southWest) {
+		area = leaflet2elasticsearch(area)
+	}
+
+	async.parallel([
+		_this.analyze_ts_data.bind(_this, area),
+		_this.analyze_grid_data.bind(_this, area)
+	], function (err, results) {
+		cb(
+			_.reduce(results, function(a, b) {return _.extend(a, b)}, {})
+		)
+	})
+}
+
+// This repeats get_grid_data pretty heavily
+Giver.prototype.analyze_grid_data = function(area, cb) {
+	
+	var query = {
+		// "size" : 0,
+		"query": {
+			"filtered": {
+				"query" : {
+					"range" : {
+						"created_time" : {
+							"gte" : this.temp_bounds.start_date,
+							"lte" : this.temp_bounds.end_date
+						}
+					}
+				},
+				"filter": {
+					"geo_bounding_box": {
+						"geoloc": area
+					}
+				}
+			}
+		},
+		"aggs": {
+			"locs": {
+				"geohash_grid": {
+					"field"     : "geoloc",
+					"precision" : this.grid_precision,
+					"size"      : 10000
+				}
+			}
+		}
+	}
+	
+	this.client.search({
+		index : this.index,
+		type  : this.scrape_name,
+		body  : query,
+        searchType : "count",
+        queryCache : true
+	}).then(function(response) {
+		var buckets = response.aggregations.locs.buckets;
+		var out     = _.map(buckets, function(x) { return geohash2geojson(x['key'], {'count' : x['doc_count']}); })
+		cb(null, {'grid' : {"type" : "FeatureCollection", "features" : out}});
+	});
+}
+
+Giver.prototype.analyze_ts_data = function(area, cb) {
+		
+	var query = {
+		// "size" : 0,
+		"query": {
+			"filtered": {
+				"query" : {
+					"range" : {
+						"created_time" : {
+							"gte" : this.temp_bounds.start_date,
+							"lte" : this.temp_bounds.end_date
+						}
+					}
+				},
+				"filter": {
+					"geo_bounding_box": {
+						"geoloc" : area
+					}
+				}
+			}
+		},
+		"aggs" : {
+			"timeseries" : {
+				"date_histogram" : {
+					"field"    : "created_time",
+					// "interval" : this.interval
+					"interval" : "day" // HARDCODING TO DAY INTERVAL FOR NOW
+				}
+			}
+		}
+	}
+		
+	this.client.search({
+		index      : this.index,
+		type       : this.scrape_name,
+		body       : query,
+        searchType : "count",
+        queryCache : true
+	}).then(function(response) {
+		var timeseries = _(response.aggregations.timeseries.buckets)
+							.map(function(x) {
+								return {
+									'count' : x['doc_count'],
+									'date'  : x['key_as_string']
+								}
+							});
+		
+		cb(null, {'timeseries' : timeseries});
+	});
+}
+
+
 
 // ---- Helper functions -----
 
@@ -271,7 +409,7 @@ function dateAdd(date, interval, units) {
   return ret;
 }
 
-function geohash_to_geojson(hash, props) {
+function geohash2geojson(hash, props) {
 	// props = props | {};
 	
 	var data1 = ngeohash.decode_bbox(hash)
@@ -296,5 +434,17 @@ function geohash_to_geojson(hash, props) {
 	}
 }
 
+function leaflet2elasticsearch(leaflet_bounds) {
+	return {
+		"bottom_right" : {
+			"lat" : leaflet_bounds._southWest.lat, 
+			"lon" : leaflet_bounds._northEast.lng
+		},
+		"top_left" : {
+			"lat" : leaflet_bounds._northEast.lat,
+			"lon" : leaflet_bounds._southWest.lng
+		}
+	}
+}
 
 module.exports = Giver;
