@@ -1,7 +1,7 @@
 
-var boxes_to_names = {};
+// var boxes_to_names = {};
 
-var one_to_scrape = undefined;
+var current_scrape_obj = undefined;
 
 $(document).ready(function() {
 // <draw-map>
@@ -64,11 +64,11 @@ $(document).ready(function() {
 
 // <analyzing area>
 function analyze_area(area) {
-	socket.emit('analyze_area', area, function(data) {
-		console.log('analyze area returning')
+	socket.emit('analyze_area', area, function(response) {
+		console.log('analyze_area :: ', response)
 
 		d3.select('#line_svg').remove();
-		line_data = data.timeseries;
+		line_data = response.timeseries;
 		draw_line(line_data);
 		
 	});
@@ -81,21 +81,26 @@ function analyze_area(area) {
 // This has side-effects on the server
 function load_scrapes() {
 	socket.emit('get_existing', function(response) {
-		console.log('response', response)
+		console.log('get_existing :: ', response)
 		_.map(response.types, function(x) {
 			load_scrape(x);
 		});			
 	});
 }
 
+function elasticsearch2leaflet(geo_bounds) {
+	var southWest  = L.latLng(geo_bounds.bottom_right.lat, geo_bounds.top_left.lon);
+	var northEast  = L.latLng(geo_bounds.top_left.lat, geo_bounds.bottom_right.lon);
+	return L.latLngBounds(southWest, northEast);
+}
+
 // Breaking apart the scrape loading and the scrape settings
 function load_scrape(scrape_name) {
-	socket.emit('set_scrape', scrape_name, function(response) {
+	socket.emit('load_scrape', scrape_name, function(response) {
 		
-		console.log('got response', response)
-		var southWest  = L.latLng(response.geo_bounds.bottom_right.lat, response.geo_bounds.top_left.lon);
-		var northEast  = L.latLng(response.geo_bounds.top_left.lat, response.geo_bounds.bottom_right.lon);
-		var geo_bounds = L.latLngBounds(southWest, northEast);
+		console.log('load_scrape :: ', response);
+		
+		var geo_bounds = elasticsearch2leaflet(response.geo_bounds);
 		
 		// Color the background of the region, for now at least
 		var rec = L.rectangle(geo_bounds, {
@@ -103,13 +108,10 @@ function load_scrape(scrape_name) {
 			weight      : 2,
 			fillOpacity : 0
 		});
-		
-		rec.on('click', function(e){
-			set_scrape(scrape_name);
-		});
-
+		rec.on('click', function(e){ set_scrape(scrape_name); });
 		rec.addTo(map)
-		boxes_to_names[rec._leaflet_id] = response;
+
+		// boxes_to_names[rec._leaflet_id] = response;
 		
 		//map.fitBounds(geo_bounds);
 	});
@@ -117,16 +119,19 @@ function load_scrape(scrape_name) {
 
 function set_scrape(scrape_name) {
 	socket.emit('set_scrape', scrape_name, function(response) {
-		$('#scrape-name').html(boxes_to_names[e.target._leaflet_id].scrape_name);
-	    $('#scrape-start-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.start_date);
-	    $('#scrape-end-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.end_date);
+		
+		console.log('set_scrape :: ', response);
+		
+		var geo_bounds = elasticsearch2leaflet(response.geo_bounds);
+		
+		$('#scrape-name').html(response.scrape_name);
+	    $('#scrape-start-date').html(response.temp_bounds.start_date);
+	    $('#scrape-end-date').html(response.temp_bounds.end_date);
 	    
 	    map.fitBounds(geo_bounds);
-	    one_to_scrape = response;
+	    current_scrape_obj = response;
 	    
-	    // It would make sense to pass this one_to_scrape rather than just bounds, but 
-	    // we want to be able to recycle the function for an arbitrary region ... right? ~ BKJ
-	    analyze_area(geo_bounds);		
+	    analyze_area(geo_bounds);
 	});
 }
 
@@ -374,7 +379,6 @@ function set_scrape(scrape_name) {
 		  .append("g")
 		    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-		console.log(data)
 		_data = _.map(data, function(d) {
 			return {
 				"date"  :  parseDate(d.date),
@@ -400,7 +404,8 @@ function set_scrape(scrape_name) {
 
 // <events>
 	$('#start-stream').on('click', function() {		
-		socket.emit('playback', one_to_scrape, function(response) {
+		socket.emit('playback', function(response) {
+			line_data = [];
 			// ... nothing yet ...
 		});
 	});
@@ -431,50 +436,55 @@ function set_scrape(scrape_name) {
 		analyze_area(drawnItems.getLayers()[0].getBounds());
 	});
 	
-	$('#init-modal-form-submit').on('click',function() {
-		socket.emit('init_scrape', {
-			"name"           : $( "#init-modal-form-name" ).val(),
-			"comments"       : $( "#init-modal-form-comment" ).val(),
-			"leaflet_bounds" : drawnItems.getLayers()[0].getBounds(), // Rectangle bounds
-			"time"           : $("#init-modal-form-start-date").val(),
-			"user"           : "dev_user"
-		}, function(response) {
-			console.log('response from init_scrape :: ', response);
-		});		
+	/*
+		Dropping modals for now
 		
-		$('#init-modal').modal('hide');
-	})
-		
-	// Click on button to start a new scrape
-	$('#start-new-scrape').on('click', function() {
-		$('#first-modal').modal('hide');
-		make_drawControl();
-	});
-	
-	// Click on button to look at an existing scrape
-	$('#start-existing-scrape').on('click', function() {
-		$('#first-modal').modal('hide');
-		$('#existing-modal').modal('show');
-		
-		socket.emit('get_existing', function(response) {
-			console.log('response', response)
+		$('#init-modal-form-submit').on('click',function() {
+			socket.emit('init_scrape', {
+				"name"           : $( "#init-modal-form-name" ).val(),
+				"comments"       : $( "#init-modal-form-comment" ).val(),
+				"leaflet_bounds" : drawnItems.getLayers()[0].getBounds(), // Rectangle bounds
+				"time"           : $("#init-modal-form-start-date").val(),
+				"user"           : "dev_user"
+			}, function(response) {
+				console.log('response from init_scrape :: ', response);
+			});		
 			
-			// Make list of places
-			var content = $('<div>');
-			_.map(response.types, function(x) {
-				var tmp = $('<button>').css('display', 'block').addClass('btn btn-primary').addClass('scrape-name-btn').html(x)
-				tmp.on('click', function(e) {
-					$('#existing-modal').modal('hide');
-					console.log('>>>>', e);
-					set_scrape(e.target.innerText);
-				})
-				tmp.appendTo(content);
-			});
+			$('#init-modal').modal('hide');
+		})
 			
-			$('#existing-modal .modal-body').html(content);	
+		// Click on button to start a new scrape
+		$('#start-new-scrape').on('click', function() {
+			$('#first-modal').modal('hide');
+			make_drawControl();
 		});
 		
-	});
+		// Click on button to look at an existing scrape
+		$('#start-existing-scrape').on('click', function() {
+			$('#first-modal').modal('hide');
+			$('#existing-modal').modal('show');
+			
+			socket.emit('get_existing', function(response) {
+				console.log('response', response)
+				
+				// Make list of places
+				var content = $('<div>');
+				_.map(response.types, function(x) {
+					var tmp = $('<button>').css('display', 'block').addClass('btn btn-primary').addClass('scrape-name-btn').html(x)
+					tmp.on('click', function(e) {
+						$('#existing-modal').modal('hide');
+						console.log('>>>>', e);
+						set_scrape(e.target.innerText);
+					})
+					tmp.appendTo(content);
+				});
+				
+				$('#existing-modal .modal-body').html(content);	
+			});
+			
+		});
+	*/
+	
 // </events>
 
 // <init>
@@ -483,7 +493,7 @@ $('#init-scrape-btn').css('display', 'none');
 $('#analyze-btn').css('display', 'none');
 $('#comment-btn').css('display', 'none');
 $('#show-user-btn').css('display', 'none');
-set_scrapes();
+load_scrapes();
 // </init>
 
 })

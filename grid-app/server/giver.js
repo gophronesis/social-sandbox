@@ -83,9 +83,8 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 	})
 }
 
-Giver.prototype.start = function(scrape_obj) {
+Giver.prototype.start = function() {
 	var _this = this;
-	this.scrape_name = scrape_obj.scrape_name;
 	if(this.scrape_name) {
 		console.log('starting giver...')
 		this.running  = true;
@@ -269,8 +268,7 @@ Giver.prototype.get_grid_data = function(cb) {
         queryCache : true
 	}).then(function(response) {
 		var buckets = response.aggregations.locs.buckets;
-		var out     = _.map(buckets, function(x) { return geohash_to_geojson(x['key'], {'count' : x['doc_count']}); })
-		console.log(out);
+		var out     = _.map(buckets, function(x) { return geohash2geojson(x['key'], {'count' : x['doc_count']}); })
 		cb(null, {'grid' : {"type" : "FeatureCollection", "features" : out}});
 	});
 }
@@ -280,9 +278,7 @@ Giver.prototype.analyze_area = function(area, cb) {
 	var _this = this;
 	
 	async.parallel([
-		function() {
-			this.analyze_ts_data(area, cb)
-		}.bind(_this),
+		_this.analyze_ts_data.bind(_this, area)
 	], function (err, results) {
 		cb(
 			_.reduce(results, function(a, b) {return _.extend(a, b)}, {})
@@ -322,15 +318,13 @@ Giver.prototype.analyze_ts_data = function(area, cb) {
 			"timeseries" : {
 				"date_histogram" : {
 					"field"    : "created_time",
-					"interval" : this.interval
+					// "interval" : this.interval
+					"interval" : "day" // HARDCODING TO DAY FOR NOW
 				}
 			}
 		}
 	}
-	
-	console.log(this.scrape_name);
-	console.log(JSON.stringify(query));
-	
+		
 	this.client.search({
 		index      : this.index,
 		type       : this.scrape_name,
@@ -338,10 +332,16 @@ Giver.prototype.analyze_ts_data = function(area, cb) {
         searchType : "count",
         queryCache : true
 	}).then(function(response) {
-		console.log('response', response.aggregations.timeseries);
-		cb(null, {'timeseries' : response.aggregations.timeseries.buckets});
+		var timeseries = _(response.aggregations.timeseries.buckets)
+							.map(function(x) {
+								return {
+									'count' : x['doc_count'],
+									'date'  : x['key_as_string']
+								}
+							});
+		
+		cb(null, {'timeseries' : timeseries});
 	});
-
 }
 
 
@@ -364,7 +364,7 @@ function dateAdd(date, interval, units) {
   return ret;
 }
 
-function geohash_to_geojson(hash, props) {
+function geohash2geojson(hash, props) {
 	// props = props | {};
 	
 	var data1 = ngeohash.decode_bbox(hash)

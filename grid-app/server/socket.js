@@ -47,7 +47,8 @@ module.exports = function(app, server, client, config) {
     
     // List of existing scrape
     socket.on('get_existing', function(callback) {
-      console.log('get_existing')
+      console.log('get_existing :: ');
+      
       client.indices.getMapping({
         index : config['index']
       }).then(function(response) {
@@ -59,6 +60,7 @@ module.exports = function(app, server, client, config) {
                       return _.contains(WHITELIST, d)
                     })
         });
+        
       });
     });
     
@@ -76,7 +78,7 @@ module.exports = function(app, server, client, config) {
     });
     
     socket.on('load_scrape', function(scrape_name, callback) {
-      console.log('set_scrape :: ', scrape_name);
+      console.log('load_scrape :: ', scrape_name);
       giver.get_scrape(scrape_name, function(scrape) {
         callback(scrape);
       });
@@ -85,13 +87,14 @@ module.exports = function(app, server, client, config) {
 
     socket.on('analyze_area', function(area, callback) {
       console.log('area :: ', area);
-      giver.analyze_area(area, function(data) {
-        callback(data)
+      giver.analyze_area(area, function(response) {
+        console.log('analyze_area :: ', response);
+        callback(response)
       });
     });
 
-    socket.on('playback', function(scrape_obj, callback) {
-      giver.start(scrape_obj);
+    socket.on('playback', function(callback) {
+      giver.start();
     });
 
     socket.on('disconnect', function(){
