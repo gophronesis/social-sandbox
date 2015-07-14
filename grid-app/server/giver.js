@@ -25,11 +25,10 @@ function Giver(client, socket, config) {
 	this._process = undefined;
 }
 
-Giver.prototype.set_scrape = function(scrape_name, cb) {
-	var _this = this;
-	this.scrape_name = scrape_name;
-	
+// Gets the parameters of a scrape
+Giver.prototype.get_scrape = function(scrape_name, cb) {
 	var query = {
+		// "size" : 0,
 		"aggs" : {
 			"geo_bounds" : {
 				"geo_bounds" : {
@@ -43,16 +42,15 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 			}
 		}
 	}
-	
+
 	this.client.search({
-		index : this.index,
-		type  : this.scrape_name,
-		body  : query,
-		searchType : "count"
+		index      : this.index,
+		type       : scrape_name,
+		body       : query,
+        searchType : "count",
+        queryCache : true
 	}).then(function(response) {
-		console.log(response)
-		_this.geo_bounds = response.aggregations.geo_bounds.bounds;
-		
+		// Response
 		cb({
 			"scrape_name" : scrape_name,
 			"geo_bounds"  : response.aggregations.geo_bounds.bounds,
@@ -61,13 +59,33 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 				"end_date"   : response.aggregations.temp_bounds.max_as_string
 			}
 		});
-	});
+	})
+}
+
+// Gets the parameters of a scrape and saves the state
+Giver.prototype.set_scrape = function(scrape_name, cb) {
+	var _this = this;
+	
+	this.get_scrape(scrape_name, function(response) {
+		
+		_this.scrape_name = scrape_name;	
+		// Set parameters
+		_this.geo_bounds = response.geo_bounds;
+		
+		// console.log('new Date(response.aggregations.temp_bounds.max_as_string)',)
+		_this.set_temp_bounds({
+			"start_date" : new Date(response.temp_bounds.start_date),
+			"end_date"   : new Date(response.temp_bounds.end_date)
+		});
+		
+		cb(response)
+
+	})
 }
 
 Giver.prototype.start = function(scrape_obj) {
 	var _this = this;
 	this.scrape_name = scrape_obj.scrape_name;
-	this.set_temp_bounds({"start_date" : new Date(scrape_obj.temp_bounds.start_date), "end_date" : new Date(scrape_obj.temp_bounds.end_date)});
 	if(this.scrape_name) {
 		console.log('starting giver...')
 		this.running  = true;
@@ -118,6 +136,7 @@ Giver.prototype.set_temp_bounds = function(temp_bounds) {
 	return true;
 }
 
+// Time resolution of giver
 Giver.prototype.set_interval = function(interval) {
 	if(this.running) {
 		this.stop();
@@ -132,6 +151,7 @@ Giver.prototype._next_period = function() {
 	return this.current_date;
 }
 
+// Data playback
 Giver.prototype.get_data = function(cb) {
 	var _this = this;
 	
@@ -210,7 +230,7 @@ Giver.prototype.get_image_data = function(cb) {
 Giver.prototype.get_grid_data = function(cb) {
 	
 	var query = {
-		"size" : 0,
+		// "size" : 0,
 		"query": {
 			"filtered": {
 				"query" : {
@@ -244,7 +264,9 @@ Giver.prototype.get_grid_data = function(cb) {
 	this.client.search({
 		index : this.index,
 		type  : this.scrape_name,
-		body  : query
+		body  : query,
+        searchType : "count",
+        queryCache : true
 	}).then(function(response) {
 		var buckets = response.aggregations.locs.buckets;
 		var out     = _.map(buckets, function(x) { return geohash_to_geojson(x['key'], {'count' : x['doc_count']}); })
@@ -252,6 +274,77 @@ Giver.prototype.get_grid_data = function(cb) {
 		cb(null, {'grid' : {"type" : "FeatureCollection", "features" : out}});
 	});
 }
+
+// All of the data from a given area
+Giver.prototype.analyze_area = function(area, cb) {
+	var _this = this;
+	
+	async.parallel([
+		function() {
+			this.analyze_ts_data(area, cb)
+		}.bind(_this),
+	], function (err, results) {
+		cb(
+			_.reduce(results, function(a, b) {return _.extend(a, b)}, {})
+		)
+	})
+}
+
+Giver.prototype.analyze_ts_data = function(area, cb) {
+	
+	console.log('area', area);
+	
+	// Convert date formats if necessary
+	if(area._southWest) {
+		area = leaflet2elasticsearch(area)
+	}
+	
+	var query = {
+		// "size" : 0,
+		"query": {
+			"filtered": {
+				"query" : {
+					"range" : {
+						"created_time" : {
+							"gte" : this.temp_bounds.start_date,
+							"lte" : this.temp_bounds.end_date
+						}
+					}
+				},
+				"filter": {
+					"geo_bounding_box": {
+						"geoloc" : area
+					}
+				}
+			}
+		},
+		"aggs" : {
+			"timeseries" : {
+				"date_histogram" : {
+					"field"    : "created_time",
+					"interval" : this.interval
+				}
+			}
+		}
+	}
+	
+	console.log(this.scrape_name);
+	console.log(JSON.stringify(query));
+	
+	this.client.search({
+		index      : this.index,
+		type       : this.scrape_name,
+		body       : query,
+        searchType : "count",
+        queryCache : true
+	}).then(function(response) {
+		console.log('response', response.aggregations.timeseries);
+		cb(null, {'timeseries' : response.aggregations.timeseries.buckets});
+	});
+
+}
+
+
 
 // ---- Helper functions -----
 
@@ -296,5 +389,17 @@ function geohash_to_geojson(hash, props) {
 	}
 }
 
+function leaflet2elasticsearch(leaflet_bounds) {
+	return {
+		"bottom_right" : {
+			"lat" : leaflet_bounds._southWest.lat, 
+			"lon" : leaflet_bounds._northEast.lng
+		},
+		"top_left" : {
+			"lat" : leaflet_bounds._northEast.lat,
+			"lon" : leaflet_bounds._southWest.lng
+		}
+	}
+}
 
 module.exports = Giver;

@@ -64,31 +64,37 @@ $(document).ready(function() {
 
 // <analyzing area>
 function analyze_area(area) {
-	// todo
+	socket.emit('analyze_area', area, function(data) {
+		console.log('analyze area returning')
+
+		d3.select('#line_svg').remove();
+		line_data = data.timeseries;
+		draw_line(line_data);
+		
+	});
 }
 // <analyzing area>
 
 
 
 // <scrape-management>
-
-function set_scrapes() {
+// This has side-effects on the server
+function load_scrapes() {
 	socket.emit('get_existing', function(response) {
-			console.log('response', response)
-			_.map(response.types, function(x) {
-				set_scrape(x);
-			});
-			
-		});
+		console.log('response', response)
+		_.map(response.types, function(x) {
+			load_scrape(x);
+		});			
+	});
 }
 
-function set_scrape(scrape_name) {
+// Breaking apart the scrape loading and the scrape settings
+function load_scrape(scrape_name) {
 	socket.emit('set_scrape', scrape_name, function(response) {
 		
 		console.log('got response', response)
-		var southWest = L.latLng(response.geo_bounds.bottom_right.lat, response.geo_bounds.top_left.lon);
-		var northEast = L.latLng(response.geo_bounds.top_left.lat, response.geo_bounds.bottom_right.lon);
-		
+		var southWest  = L.latLng(response.geo_bounds.bottom_right.lat, response.geo_bounds.top_left.lon);
+		var northEast  = L.latLng(response.geo_bounds.top_left.lat, response.geo_bounds.bottom_right.lon);
 		var geo_bounds = L.latLngBounds(southWest, northEast);
 		
 		// Color the background of the region, for now at least
@@ -98,22 +104,29 @@ function set_scrape(scrape_name) {
 			fillOpacity : 0
 		});
 		
-
 		rec.on('click', function(e){
-			$('#scrape-name').html(boxes_to_names[e.target._leaflet_id].scrape_name);
-		    $('#scrape-start-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.start_date);
-		    $('#scrape-end-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.end_date);
-		    map.fitBounds(geo_bounds);
-		    one_to_scrape = response;
+			set_scrape(scrape_name);
 		});
 
 		rec.addTo(map)
 		boxes_to_names[rec._leaflet_id] = response;
 		
-		
 		//map.fitBounds(geo_bounds);
-		
-		
+	});
+}
+
+function set_scrape(scrape_name) {
+	socket.emit('set_scrape', scrape_name, function(response) {
+		$('#scrape-name').html(boxes_to_names[e.target._leaflet_id].scrape_name);
+	    $('#scrape-start-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.start_date);
+	    $('#scrape-end-date').html(boxes_to_names[e.target._leaflet_id].temp_bounds.end_date);
+	    
+	    map.fitBounds(geo_bounds);
+	    one_to_scrape = response;
+	    
+	    // It would make sense to pass this one_to_scrape rather than just bounds, but 
+	    // we want to be able to recycle the function for an arbitrary region ... right? ~ BKJ
+	    analyze_area(geo_bounds);		
 	});
 }
 
@@ -128,6 +141,7 @@ function set_scrape(scrape_name) {
 	function giver_handler(data) {
 		
 		console.log(data);
+		
 		// Draw lines
 		d3.select('#line_svg').remove();
 		line_data.push({'date' : data.date, 'count' : data.count});
@@ -146,6 +160,7 @@ function set_scrape(scrape_name) {
 		} else {
 			draw_grid(grid, data.grid)
 		}
+		
 	}
 // </socket>
 
@@ -384,9 +399,9 @@ function set_scrape(scrape_name) {
 // </GRAPH>
 
 // <events>
-	$('#start-stream').on('click', function() {
-		
+	$('#start-stream').on('click', function() {		
 		socket.emit('playback', one_to_scrape, function(response) {
+			// ... nothing yet ...
 		});
 	});
 

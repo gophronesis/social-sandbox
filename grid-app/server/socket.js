@@ -18,11 +18,13 @@ module.exports = function(app, server, client, config) {
   //       { topic: config['RAW_TOPIC'] }
   //     ], { autoCommit: true, fetchMaxBytes: 1024 * 100000} );
 
+  const WHITELIST = ['boston', 'ukraine', 'southkorea', 'cleveland', 'baltimore', 'isil', 'ny', 'dc'];
+
   io.sockets.on('connection', function(socket) {
     
     // Giver
     var giver = new Giver(client, socket, config);
-    giver.set_temp_bounds({"start_date" : new Date('2015-04-01'), "end_date" : new Date('2015-04-30')});
+    // giver.set_temp_bounds({"start_date" : new Date('2015-04-01'), "end_date" : new Date('2015-04-30')});
     
     socket.on('stop_giver', function()  { giver.stop() });
     socket.on('start_giver', function(one_to_scrape) { giver.start(one_to_scrape) });
@@ -49,13 +51,20 @@ module.exports = function(app, server, client, config) {
       client.indices.getMapping({
         index : config['index']
       }).then(function(response) {
-        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'boston' || d == 'ukraine' || d == 'southkorea' || d == 'cleveland' || d == 'baltimore' || d == 'isil' || d == 'ny' || d == 'dc')})});
+        
+        callback({
+          'types' : _(response[config['index']]['mappings'])
+                    .keys()
+                    .filter(function(d) {
+                      return _.contains(WHITELIST, d)
+                    })
+        });
       });
     });
     
     // Choosing an existing scrape
     socket.on('set_scrape', function(scrape_name, callback) {
-      console.log('set_scrape',scrape_name);
+      console.log('set_scrape :: ', scrape_name);
       giver.set_scrape(scrape_name, function(scrape) {
         
         // Send information about scrape back to front end
@@ -65,11 +74,25 @@ module.exports = function(app, server, client, config) {
         //giver.start();
       });
     });
+    
+    socket.on('load_scrape', function(scrape_name, callback) {
+      console.log('set_scrape :: ', scrape_name);
+      giver.get_scrape(scrape_name, function(scrape) {
+        callback(scrape);
+      });
+
+    });
+
+    socket.on('analyze_area', function(area, callback) {
+      console.log('area :: ', area);
+      giver.analyze_area(area, function(data) {
+        callback(data)
+      });
+    });
 
     socket.on('playback', function(scrape_obj, callback) {
       giver.start(scrape_obj);
     });
-
 
     socket.on('disconnect', function(){
       giver.stop();
