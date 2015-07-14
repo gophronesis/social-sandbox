@@ -18,7 +18,7 @@ module.exports = function(app, server, client, config) {
   //       { topic: config['RAW_TOPIC'] }
   //     ], { autoCommit: true, fetchMaxBytes: 1024 * 100000} );
 
-  const WHITELIST = ['boston', 'ukraine', 'southkorea', 'cleveland', 'baltimore', 'isil', 'ny', 'dc'];
+  const WHITELIST = ['boston', 'ukraine', 'southkorea', 'cleveland', 'baltimore', 'isil', 'ny', 'dc', 'waitwhat'];
 
   io.sockets.on('connection', function(socket) {
     
