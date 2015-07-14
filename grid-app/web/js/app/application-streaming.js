@@ -407,6 +407,8 @@ function set_scrape(scrape_name) {
 		});	
 	});
 
+
+
 	$('#analyze-btn').on('click', function() {
 		/*
 			STUB FOR LOADING SIDE BAR WITH IMAGES, POPULATING TIME SERIES, AND POPULATING EVENTS FOR GIVEN AREA.
@@ -414,6 +416,14 @@ function set_scrape(scrape_name) {
 		*/
 		console.log(drawnItems.getLayers()[0].getBounds());
 		analyze_area(drawnItems.getLayers()[0].getBounds());
+	});
+
+	$('#comment-btn').on('click', function() {
+		_.keys(selectedImages).map(function(media) {
+			socket.emit('alert_user', {text:'test',image:media}, function(response) {
+				console.log('response from scrape_user :: ', response);
+			});
+		});	
 	});
 	
 	$('#init-modal-form-submit').on('click',function() {

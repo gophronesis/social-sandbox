@@ -49,7 +49,7 @@ module.exports = function(app, server, client, config) {
       client.indices.getMapping({
         index : config['index']
       }).then(function(response) {
-        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'boston' || d == 'ukraine' || d == 'southkorea' || d == 'cleveland' || d == 'baltimore' || d == 'isil' || d == 'ny' || d == 'dc')})});
+        callback({'types' : _.filter(_.keys(response[config['index']]['mappings']),function(d){return (d == 'waitwhat' || d == 'boston' || d == 'ukraine' || d == 'southkorea' || d == 'cleveland' || d == 'baltimore' || d == 'isil' || d == 'ny' || d == 'dc')})});
       });
     });
     
@@ -89,6 +89,30 @@ module.exports = function(app, server, client, config) {
            }
         );
     });
+
+    // Initiating scraping
+    socket.on('alert_user', function(data, callback) {
+      console.log('alerting user :: ', data);
+      data['access_token'] = "39050578.2974fce.9a9ace71fc934856b883a51b3f7ce746";
+      var im = data.image;
+      delete data.image;
+      console.log(data);
+      request.post({url:"https://api.instagram.com/v1/media/" + im + "/comments", form: {access_token:'39050578.2974fce.9a9ace71fc934856b883a51b3f7ce746', text:'test'}}, function(err,httpResponse,body){ /* ... */ });
+      //request.post({url:"https://api.instagram.com/v1/media/" + im + "/comments", form: {data}}, function(err,httpResponse,body){ /* ... */ });
+      console.log("https://api.instagram.com/v1/media/" + im + "/comments");
+      /*request( {
+        url: "https://api.instagram.com/v1/media/" + im + "/comments",
+        method: "POST",
+        json: true,
+        headers: {
+            "content-type": "application/json",
+        },
+        body: data
+      });
+      
+      callback({'status' : 'ok'});
+      */
+    })
     
     // // Forward Kafka -> socket.io
     // consumer.on('message', function (message) {
