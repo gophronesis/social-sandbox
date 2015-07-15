@@ -145,9 +145,23 @@ function set_scrape(scrape_name) {
 			// sidebar_image(img);
 	  //   });
 
-		d3.select(".side-bar").selectAll("svg").remove();
-		draw_users(data.users);
-	
+		var params = {
+			"users" : {
+				"css_selector" : ".side-bar .col1",
+				"color" : "yellow"
+			},
+			"tags" : {
+				"css_selector" : ".side-bar .col2",
+				"color" : "limegreen"
+			}
+		}
+		
+		d3.select(params.users.css_selector).selectAll("svg").remove();
+		draw_trending(data.users, params.users);
+		
+		d3.select(params.tags.css_selector).selectAll("svg").remove();
+		draw_trending(data.tags, params.tags);
+		
 		// Grid
 		if(!grid) {
 			grid = init_grid(data.grid)
@@ -353,20 +367,20 @@ function analyze_area(area) {
 	});
 
 // <top-users>
-	function draw_users(orig_data) {
-		var w = $('.side-bar').width(),
-		    h = $('.side-bar').height() / 5;
+	function draw_trending(orig_data, params) {
+		var w = $(params.css_selector).width(),
+		    h = $(params.css_selector).height() / orig_data.length;
 		
-		var margin = {top: 5, right: 5, bottom: 5, left: 5},
+		var margin = {top: 5, right: 10, bottom: 5, left: 0},
 		    width  = w - margin.left - margin.right,
 		    height = h - margin.top - margin.bottom;
 		
 		var parseDate = d3.time.format("%Y-%m-%dT%H:%M:%S.000Z").parse;
 		
-        var data = _.map(orig_data, function(user) {
+        var data = _.map(orig_data, function(b) {
         	return {
-        		"user" : user.user,
-        		"timeseries" : _.map(user.timeseries, function(x) {
+        		"key" : b.key,
+        		"timeseries" : _.map(b.timeseries, function(x) {
 		            return {
 		                "date"  : parseDate(x.date),
 		                "count" : + x.count
@@ -374,8 +388,6 @@ function analyze_area(area) {
         		})
         	}
         });
-        
-        console.log('data ::', data);
                 
         // Calculate bar width
         var bar_width = 3;
@@ -390,7 +402,7 @@ function analyze_area(area) {
         	_.chain(data).pluck('timeseries').flatten().pluck('count').value()	
         ));
 
-        var svg = d3.select(".side-bar").selectAll('svg')
+        var svg = d3.select(params.css_selector).selectAll('svg')
         			.data(data).enter()
         				.append('svg:svg')
         				.attr('class', 'user-ts')
@@ -398,9 +410,6 @@ function analyze_area(area) {
 						.attr('width', width);
         
 		  svg.append("g")
-		      // Hide y axis
-		      // .attr("class", "y axis")
-		      // .call(yAxis)
 		    .append("text")
 		    .attr("x", 2)
 		    .attr("y", 0)
@@ -408,21 +417,21 @@ function analyze_area(area) {
 		    .attr("text-anchor", "start")
 		    .attr("font-size", "1.1em")
 		    .attr('fill', 'white')
-		    .text(function(d) { return d.user});
+		    .text(function(d) { return d.key});
 		    
         svg.selectAll(".bar")
             .data(function(d) {console.log('d :: ', d); return d.timeseries})
             .enter().append("rect")
-            .style("fill",  'yellow')
+            .style("fill",  params.color)
             .attr("x",      function(d) { return x(d.date); })
             .attr("width",  bar_width)
             .attr("y",      function(d) { return y(d.count) })
             .attr("height", function(d) { return height - y(d.count); })
             .on('mouseover', function(e) {
-                d3.select(this).style('fill', function() {return 'blue'})
+                d3.select(this).style('fill', function() {return "white"})
             })
             .on('mouseout',  function(e) {
-                d3.select(this).style('fill', function() {return 'yellow'})
+                d3.select(this).style('fill', function() {return params.color})
             })
 	}
 // </top-users>

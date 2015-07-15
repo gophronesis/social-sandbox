@@ -16,7 +16,7 @@ function Giver(client, socket, config) {
 	this.current_date = undefined;
 	this.interval     = 'day';
 	
-	this.grid_precision = 7;
+	this.grid_precision = 6;
 	this.geo_bounds     = undefined
 	
 	this.running  = false;
@@ -72,7 +72,6 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 		// Set parameters
 		_this.geo_bounds = response.geo_bounds;
 		
-		// console.log('new Date(response.aggregations.temp_bounds.max_as_string)',)
 		_this.set_temp_bounds({
 			"start_date" : new Date(response.temp_bounds.start_date),
 			"end_date"   : new Date(response.temp_bounds.end_date)
@@ -159,8 +158,7 @@ Giver.prototype.get_data = function(cb) {
 		_this.get_grid_data.bind(_this),
 		_this.get_image_data.bind(_this),
 		
-		_this.get_top_users.bind(_this) //,
-		// _this.get_top_hashtags.bind(_this)
+		_this.get_trending.bind(_this)
 	], function (err, results) {
 		// Combine results
 		cb(
@@ -170,7 +168,7 @@ Giver.prototype.get_data = function(cb) {
 }
 
 // Top users up through the end of this time period
-Giver.prototype.get_top_users = function(cb) {
+Giver.prototype.get_trending = function(cb) {
 	var _this = this;
 	var query = {
 		"query" : {
@@ -196,6 +194,22 @@ Giver.prototype.get_top_users = function(cb) {
 						}
 					}
 				}
+			},
+			"tags" : {
+				"terms" : {
+					"field"        : "tags",
+					"size"         : 5,
+					"collect_mode" : "breadth_first"
+				},
+				"aggs" : {
+					"timeseries" : {
+						"date_histogram" : {
+							"field" : "created_time",
+							// "interval" : this.interval
+							"interval" : "day" // HARDCODING TO DAY INTERVAL FOR NOW
+						}
+					}
+				}
 			}
 		}
 	}
@@ -205,22 +219,10 @@ Giver.prototype.get_top_users = function(cb) {
 		type  : this.scrape_name,
 		body  : query
 	}).then(function(response) {
-		console.log(response);
-		
-		var users = _.map(response.aggregations.users.buckets, function(user) {
-						return {
-							"user" : user.key,
-							"timeseries" : _.map(user.timeseries.buckets, function(x) {
-								return {
-									'count' : x['doc_count'],
-									'date'  : x['key_as_string']
-								}
-							})
-						}
-					})
-		
+		console.log('response.aggregations.tags.buckets', response.aggregations.tags.buckets);
 		cb(null, {
-			'users' : users
+			'users' : terms_timeseries(response.aggregations.users.buckets),
+			'tags'  : terms_timeseries(response.aggregations.tags.buckets)
 		});
 	});
 }
@@ -244,7 +246,6 @@ Giver.prototype.get_ts_data = function(cb) {
 		type  : this.scrape_name,
 		body  : query
 	}).then(function(response) {
-		console.log(response);
 		cb(null, {"count" : response.hits.total, "date" : _this.current_date});
 	});
 }
@@ -447,6 +448,23 @@ Giver.prototype.analyze_ts_data = function(area, cb) {
 	});
 }
 
+
+
+// ---- Processing functions ----
+function terms_timeseries(x) {
+	return _.map(x, function(b) {
+		console.log(b.key);
+		return {
+			"key" : b.key,
+			"timeseries" : _.map(b.timeseries.buckets, function(x) {
+				return {
+					'count' : x['doc_count'],
+					'date'  : x['key_as_string']
+				}
+			})
+		}
+	});
+}
 
 
 // ---- Helper functions -----
