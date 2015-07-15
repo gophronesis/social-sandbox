@@ -240,7 +240,7 @@ function analyze_area(area) {
 		feature.attr('d', project)
 			.attr('opacity', function(d) {
 				// return Math.random()
-				return d.properties.count / 10; // Hardcoded scaling 
+				return Math.log10(d.properties.count) / 10; // Hardcoded scaling 
 			})
 			.attr('fill', 'red')
 	}
@@ -398,9 +398,9 @@ function analyze_area(area) {
         )).nice();
         
         var y = d3.scale.linear().range([height, 0]);
-        y.domain(d3.extent(
+        y.domain([0, d3.max(
         	_.chain(data).pluck('timeseries').flatten().pluck('count').value()	
-        ));
+        )]);
 
         var svg = d3.select(params.css_selector).selectAll('svg')
         			.data(data).enter()
@@ -433,6 +433,9 @@ function analyze_area(area) {
             .on('mouseout',  function(e) {
                 d3.select(this).style('fill', function() {return params.color})
             })
+            .append('title')
+            .text(function(d) { return d.date + ' / ' + d.count });
+
 	}
 // </top-users>
 
