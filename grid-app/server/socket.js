@@ -18,7 +18,7 @@ module.exports = function(app, server, client, config) {
   //       { topic: config['RAW_TOPIC'] }
   //     ], { autoCommit: true, fetchMaxBytes: 1024 * 100000} );
 
-  const WHITELIST = ['boston', 'ukraine', 'southkorea', 'cleveland', 'baltimore', 'isil', 'ny', 'dc', 'waitwhat', 'national_mall'];
+  const WHITELIST = ['boston', 'ukraine', 'southkorea', 'cleveland', 'baltimore', 'isil', 'ny', 'dc', 'waitwhat', 'national_mall', 'la'];
 
   io.sockets.on('connection', function(socket) {
     
@@ -52,7 +52,6 @@ module.exports = function(app, server, client, config) {
       client.indices.getMapping({
         index : config['index']
       }).then(function(response) {
-        
         callback({
           'types' : _(response[config['index']]['mappings'])
                     .keys()
@@ -110,6 +109,18 @@ module.exports = function(app, server, client, config) {
               callback(body);
            }
         );
+    });
+
+    // Initiating scraping
+    socket.on('alert_user', function(data, callback) {
+      console.log('alerting user :: ', data);
+      data['access_token'] = "putithere";
+      var im = data.image;
+      delete data.image;
+      request.post({url:"https://api.instagram.com/v1/media/" + im + "/comments", 
+        form: {access_token:data['access_token'], text:'test'}}, 
+        function(err,httpResponse,body) { /* ... */ 
+        });
     });
     
     // // Forward Kafka -> socket.io
