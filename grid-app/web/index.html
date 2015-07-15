@@ -49,17 +49,25 @@
           <button class="btn btn-primary" id="init-scrape-btn"> Initialize Scrape </button>
           <button class="btn btn-primary" id="show-user-btn"> User Images </button>
           <button class="btn btn-primary" id="comment-btn"> Comment </button>
-          <button class="btn btn-primary" id="start-stream"> Start </button>
-          <button class="btn btn-primary" id="stop-stream"> Stop </button>
+          <button class="btn btn-primary" id="start-stream"> Start Playback </button>
+          <button class="btn btn-primary" id="stop-stream"> Stop Playback </button>
+          
+          <button class="btn btn-primary" id="stop-stream"> Go Live </button>
         </ul>
       </div>
     </div>
   </div>
 
-  <div class="side-bar"></div>
-  <div class="bottom-bar"></div>
-  <div id="map"></div>
-  
+  <div class="container-fluid">
+    <div id="map-wrapper">
+      <div id="map"></div>
+    </div>
+    <div class="side-bar row-fluid">
+      <div class="col1 col-xs-6" style="height:100%;"></div>
+      <div class="col2 col-xs-6" style="height:100%;"></div>
+    </div>
+    <div class="bottom-bar"></div>
+  </div>  
   <!-- Trigger the modal with a button -->
 
 

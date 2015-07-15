@@ -18,7 +18,7 @@ module.exports = function(app, server, client, config) {
   //       { topic: config['RAW_TOPIC'] }
   //     ], { autoCommit: true, fetchMaxBytes: 1024 * 100000} );
 
-  const WHITELIST = ['boston', 'ukraine', 'southkorea', 'cleveland', 'baltimore', 'isil', 'ny', 'dc', 'waitwhat'];
+  const WHITELIST = ['boston', 'ukraine', 'southkorea', 'cleveland', 'baltimore', 'isil', 'ny', 'dc', 'waitwhat', 'national_mall', 'la'];
 
   io.sockets.on('connection', function(socket) {
     
@@ -33,13 +33,13 @@ module.exports = function(app, server, client, config) {
     socket.on('init_scrape', function(data, callback) {
       console.log('initating scrape :: ', data);
       request( {
-        url: "http://10.3.2.75:3000/scrape",
-        method: "POST",
-        json: true,
-        headers: {
+        url     : "http://10.3.2.75:3000/scrape",
+        method  : "POST",
+        json    : true,
+        headers : {
             "content-type": "application/json",
         },
-        body: data
+        body : data
       });
       
       callback({'status' : 'ok'});
@@ -117,23 +117,11 @@ module.exports = function(app, server, client, config) {
       data['access_token'] = "putithere";
       var im = data.image;
       delete data.image;
-      console.log(data);
-      request.post({url:"https://api.instagram.com/v1/media/" + im + "/comments", form: {access_token:data['access_token'], text:'test'}}, function(err,httpResponse,body){ /* ... */ });
-      //request.post({url:"https://api.instagram.com/v1/media/" + im + "/comments", form: {data}}, function(err,httpResponse,body){ /* ... */ });
-      console.log("https://api.instagram.com/v1/media/" + im + "/comments");
-      /*request( {
-        url: "https://api.instagram.com/v1/media/" + im + "/comments",
-        method: "POST",
-        json: true,
-        headers: {
-            "content-type": "application/json",
-        },
-        body: data
-      });
-      
-      callback({'status' : 'ok'});
-      */
-    })
+      request.post({url:"https://api.instagram.com/v1/media/" + im + "/comments", 
+        form: {access_token:data['access_token'], text:'test'}}, 
+        function(err,httpResponse,body) { /* ... */ 
+        });
+    });
     
     // // Forward Kafka -> socket.io
     // consumer.on('message', function (message) {

@@ -32,7 +32,8 @@ $(document).ready(function() {
 				marker   : false,
 				rectangle : {
 					shapeOptions : {
-						color : "yellow"
+						color : "green",
+						fillOpacity : .05
 					}
 				}
 			}
@@ -116,7 +117,7 @@ function set_scrape(scrape_name) {
 	    map.fitBounds(geo_bounds);
 	    current_scrape_obj = response;
 	    
-	    analyze_area(geo_bounds);
+	    // analyze_area(geo_bounds);
 	});
 }
 
@@ -139,11 +140,28 @@ function set_scrape(scrape_name) {
 		draw_line(line_data);
 		
 		// Show images
-	    _.map(data.images, function(img) {
-			draw_image(img);
-			sidebar_image(img);
-	    });
-	
+	  //   _.map(data.images, function(img) {
+			// draw_image(img);
+			// sidebar_image(img);
+	  //   });
+
+		var params = {
+			"users" : {
+				"css_selector" : ".side-bar .col1",
+				"color" : "yellow"
+			},
+			"tags" : {
+				"css_selector" : ".side-bar .col2",
+				"color" : "limegreen"
+			}
+		}
+		
+		d3.select(params.users.css_selector).selectAll("svg").remove();
+		draw_trending(data.users, params.users);
+		
+		d3.select(params.tags.css_selector).selectAll("svg").remove();
+		draw_trending(data.tags, params.tags);
+		
 		// Grid
 		if(!grid) {
 			grid = init_grid(data.grid)
@@ -222,7 +240,7 @@ function analyze_area(area) {
 		feature.attr('d', project)
 			.attr('opacity', function(d) {
 				// return Math.random()
-				return d.properties.count / 10;
+				return d.properties.count / 10; // Hardcoded scaling 
 			})
 			.attr('fill', 'red')
 	}
@@ -348,6 +366,75 @@ function analyze_area(area) {
 	    }
 	});
 
+// <top-users>
+	function draw_trending(orig_data, params) {
+		var w = $(params.css_selector).width(),
+		    h = $(params.css_selector).height() / orig_data.length;
+		
+		var margin = {top: 5, right: 10, bottom: 5, left: 0},
+		    width  = w - margin.left - margin.right,
+		    height = h - margin.top - margin.bottom;
+		
+		var parseDate = d3.time.format("%Y-%m-%dT%H:%M:%S.000Z").parse;
+		
+        var data = _.map(orig_data, function(b) {
+        	return {
+        		"key" : b.key,
+        		"timeseries" : _.map(b.timeseries, function(x) {
+		            return {
+		                "date"  : parseDate(x.date),
+		                "count" : + x.count
+		            }        			
+        		})
+        	}
+        });
+                
+        // Calculate bar width
+        var bar_width = 3;
+                
+        var x = d3.time.scale().range([0, width]);    
+        x.domain(d3.extent(
+        	_.chain(data).pluck('timeseries').flatten().pluck('date').value()
+        )).nice();
+        
+        var y = d3.scale.linear().range([height, 0]);
+        y.domain(d3.extent(
+        	_.chain(data).pluck('timeseries').flatten().pluck('count').value()	
+        ));
+
+        var svg = d3.select(params.css_selector).selectAll('svg')
+        			.data(data).enter()
+        				.append('svg:svg')
+        				.attr('class', 'user-ts')
+						.attr('height', height)
+						.attr('width', width);
+        
+		  svg.append("g")
+		    .append("text")
+		    .attr("x", 2)
+		    .attr("y", 0)
+		    .attr("dy", ".71em")
+		    .attr("text-anchor", "start")
+		    .attr("font-size", "1.1em")
+		    .attr('fill', 'white')
+		    .text(function(d) { return d.key});
+		    
+        svg.selectAll(".bar")
+            .data(function(d) {console.log('d :: ', d); return d.timeseries})
+            .enter().append("rect")
+            .style("fill",  params.color)
+            .attr("x",      function(d) { return x(d.date); })
+            .attr("width",  bar_width)
+            .attr("y",      function(d) { return y(d.count) })
+            .attr("height", function(d) { return height - y(d.count); })
+            .on('mouseover', function(e) {
+                d3.select(this).style('fill', function() {return "white"})
+            })
+            .on('mouseout',  function(e) {
+                d3.select(this).style('fill', function() {return params.color})
+            })
+	}
+// </top-users>
 
 // <GRAPH>
 	function draw_line(data) {
@@ -361,11 +448,8 @@ function analyze_area(area) {
 		var parseDate = d3.time.format("%Y-%m-%dT%H:%M:%S.000Z").parse;
 		// var parseDate = d3.time.format("%d-%b-%y").parse;
 
-		var x = d3.time.scale()
-		    .range([0, width]);
-
-		var y = d3.scale.linear()
-		    .range([height, 0]);
+		var x = d3.time.scale().range([0, width]);
+		var y = d3.scale.linear().range([height, 0]);
 
 		var xAxis = d3.svg.axis()
 		    .scale(x)
@@ -404,7 +488,7 @@ function analyze_area(area) {
 			  .datum(_data)
 			  .attr('d', path)
 			  .attr("class", "line")
-			  .attr('stroke', 'blue');
+			  .attr('stroke', 'white');
 	}
 // </GRAPH>
 
@@ -454,23 +538,22 @@ function analyze_area(area) {
 		});	
 	});
 	
-	/*
-		Dropping modals for now
 		
-		$('#init-modal-form-submit').on('click',function() {
-			socket.emit('init_scrape', {
-				"name"           : $( "#init-modal-form-name" ).val(),
-				"comments"       : $( "#init-modal-form-comment" ).val(),
-				"leaflet_bounds" : drawnItems.getLayers()[0].getBounds(), // Rectangle bounds
-				"time"           : $("#init-modal-form-start-date").val(),
-				"user"           : "dev_user"
-			}, function(response) {
-				console.log('response from init_scrape :: ', response);
-			});		
-			
-			$('#init-modal').modal('hide');
-		})
-			
+	$('#init-modal-form-submit').on('click',function() {
+		socket.emit('init_scrape', {
+			"name"           : $( "#init-modal-form-name" ).val(),
+			"comments"       : $( "#init-modal-form-comment" ).val(),
+			"leaflet_bounds" : drawnItems.getLayers()[0].getBounds(), // Rectangle bounds
+			"time"           : $("#init-modal-form-start-date").val(),
+			"user"           : "dev_user"
+		}, function(response) {
+			console.log('response from init_scrape :: ', response);
+		});		
+		
+		$('#init-modal').modal('hide');
+	})
+
+	/*			
 		// Click on button to start a new scrape
 		$('#start-new-scrape').on('click', function() {
 			$('#first-modal').modal('hide');
