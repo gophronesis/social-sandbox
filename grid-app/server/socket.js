@@ -114,11 +114,11 @@ module.exports = function(app, server, client, config) {
     // Initiating scraping
     socket.on('alert_user', function(data, callback) {
       console.log('alerting user :: ', data);
-      data['access_token'] = "39050578.2974fce.9a9ace71fc934856b883a51b3f7ce746";
+      data['access_token'] = "putithere";
       var im = data.image;
       delete data.image;
       console.log(data);
-      request.post({url:"https://api.instagram.com/v1/media/" + im + "/comments", form: {access_token:'39050578.2974fce.9a9ace71fc934856b883a51b3f7ce746', text:'test'}}, function(err,httpResponse,body){ /* ... */ });
+      request.post({url:"https://api.instagram.com/v1/media/" + im + "/comments", form: {access_token:data['access_token'], text:'test'}}, function(err,httpResponse,body){ /* ... */ });
       //request.post({url:"https://api.instagram.com/v1/media/" + im + "/comments", form: {data}}, function(err,httpResponse,body){ /* ... */ });
       console.log("https://api.instagram.com/v1/media/" + im + "/comments");
       /*request( {
