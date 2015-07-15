@@ -1,9 +1,16 @@
 
   body {
-    height         : 100%;
-    width          : 100%;
-    padding-top    : 50px;
-    padding-bottom : 60px;
+    height           : 100%;
+    width            : 100%;
+    padding-top      : 50px;
+    padding-bottom   : 60px;
+    background-color : rgb(36, 35, 35)
+  }
+  
+  #map-wrapper {
+    position : absolute;
+    width    : 60%;
+    height   : 75%;
   }
 
   .leaflet-control-container {
@@ -49,12 +56,16 @@
     position   : absolute;
     top        : 50px;
     right      : 0px;
-    bottom     : 200px;
-    width      : 250px;
+    bottom     : 25%;
+    width      : 40%;
     background-color : rgb(36, 35, 35);
     z-index : 2;
     border : 1px solid grey;
     overflow-y : auto;
+  }
+  
+  .user-ts {
+    border : 1px solid grey;
   }
   
   .side-bar-image {
@@ -67,7 +78,7 @@
     bottom    : 0px;
     left      : 0px;
     right     : 0px;
-    height    : 200px;
+    height    : 25%;
     background-color : rgb(36, 35, 35);
     z-index : 3;
     border : 1px solid grey;
@@ -76,17 +87,21 @@
 /**/
 
 .bottom-bar .axis path,
-.bottom-bar .axis line {
+.bottom-bar .axis line ,
+.side-bar .axis path,
+.side-bar .axis line {
   fill: none;
   stroke: #000;
   shape-rendering: crispEdges;
 }
 
-.bottom-bar .x.axis path {
+.bottom-bar .x.axis path,
+.side-bar .x.axis path {
   display: none;
 }
 
-.bottom-bar .line {
+.bottom-bar .line,
+.side-bar .line {
   fill: none;
   stroke-width: 2px;
 }

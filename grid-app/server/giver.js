@@ -14,14 +14,14 @@ function Giver(client, socket, config) {
 	this.temp_bounds  = undefined;
 
 	this.current_date = undefined;
-	this.interval     = 'hour';
+	this.interval     = 'day';
 	
 	this.grid_precision = 7;
 	this.geo_bounds     = undefined
 	
 	this.running  = false;
 	
-	this._speed   = 500;
+	this._speed   = 1000;
 	this._process = undefined;
 }
 
@@ -157,7 +157,10 @@ Giver.prototype.get_data = function(cb) {
 	async.parallel([
 		_this.get_ts_data.bind(_this),
 		_this.get_grid_data.bind(_this),
-		_this.get_image_data.bind(_this)
+		_this.get_image_data.bind(_this),
+		
+		_this.get_top_users.bind(_this) //,
+		// _this.get_top_hashtags.bind(_this)
 	], function (err, results) {
 		// Combine results
 		cb(
@@ -166,9 +169,64 @@ Giver.prototype.get_data = function(cb) {
 	})
 }
 
+// Top users up through the end of this time period
+Giver.prototype.get_top_users = function(cb) {
+	var _this = this;
+	var query = {
+		"query" : {
+			"range" : {
+				"created_time" : {
+					"lte" : dateAdd(_this.current_date, _this.interval, 1)
+				}
+			}
+		},
+		"aggs" : {
+			"users" : {
+				"terms" : {
+					"field"        : "user.username",
+					"size"         : 5,
+					"collect_mode" : "breadth_first"
+				},
+				"aggs" : {
+					"timeseries" : {
+						"date_histogram" : {
+							"field" : "created_time",
+							// "interval" : this.interval
+							"interval" : "day" // HARDCODING TO DAY INTERVAL FOR NOW
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	this.client.search({
+		index : this.index,
+		type  : this.scrape_name,
+		body  : query
+	}).then(function(response) {
+		console.log(response);
+		
+		var users = _.map(response.aggregations.users.buckets, function(user) {
+						return {
+							"user" : user.key,
+							"timeseries" : _.map(user.timeseries.buckets, function(x) {
+								return {
+									'count' : x['doc_count'],
+									'date'  : x['key_as_string']
+								}
+							})
+						}
+					})
+		
+		cb(null, {
+			'users' : users
+		});
+	});
+}
+
 Giver.prototype.get_ts_data = function(cb) {
 	var _this = this;
-	console.log(_this.current_date)
 	var query = {
 		"_source" : ['created_time'],
 		"query" : {
