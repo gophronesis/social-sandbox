@@ -2,10 +2,11 @@
 var _        = require('underscore')._;
 var ngeohash = require('ngeohash');
 var async    = require('async');
+var helpers  = require('./helpers');
 
-function Giver(client, socket, config) {
+function Giver(client, socket, index) {
 	
-	this.index       = config.index;
+	this.index       = index;
 	this.scrape_name = undefined,
 	
 	this.client = client;
@@ -13,18 +14,23 @@ function Giver(client, socket, config) {
 
 	this.temp_bounds  = undefined;
 
-	this.current_date = undefined;
-	this.interval     = 'day';
+	this.current_date     = undefined;
+
+	this.interval          = 'hour'; // Units
+	this.trailing_interval = 1;      // Number of `intervals` backwards we search
+	this.every_interval    = 1;      // Number of `intervals` we skip at a time
 	
 	this.grid_precision = 6;
 	this.geo_bounds     = undefined
 	
-	this.running  = false;
+	this.running  = false;	
 	
+	// Private variables
 	this._speed   = 1000;
 	this._process = undefined;
 }
 
+// <set-scrape>
 // Gets the parameters of a scrape
 Giver.prototype.get_scrape = function(scrape_name, cb) {
 	var query = {
@@ -81,7 +87,9 @@ Giver.prototype.set_scrape = function(scrape_name, cb) {
 
 	})
 }
+// </set-scrape>
 
+// <runners>
 Giver.prototype.start = function() {
 	var _this = this;
 	if(this.scrape_name) {
@@ -97,7 +105,24 @@ Giver.prototype.stop = function() {
 	console.log('stopping giver...')
 	this.running = false;
 	clearInterval(this._process);
+	this._process = undefined;
 }
+
+Giver.prototype.restart = function() {
+	this.stop();
+	this.start();
+}
+
+Giver.prototype.go_live = function() {
+	this.live = true;
+	this.restart();
+}
+
+Giver.prototype._next_period = function() {
+	this.current_date = helpers.dateAdd(this.current_date, this.interval, this.every_interval);
+	return this.current_date;
+}
+// </runners>
 
 // giving function
 Giver.prototype.give = function() {
@@ -106,7 +131,7 @@ Giver.prototype.give = function() {
 		
 		if(_this.running) {
 			_this._next_period();
-			console.log('giver giving :: ', _this.current_date);
+			console.log('giver.give :: ', _this.current_date);
 			_this.get_data(function(data) {
 				_this.socket.emit('give', data)	
 			});
@@ -115,39 +140,17 @@ Giver.prototype.give = function() {
 			// });
 		}
 		
-		if(_this.current_date.getTime() >= _this.temp_bounds.end_date.getTime()) {
-			_this.stop();
+		if(!_this.live) {
+			if(_this.current_date.getTime() >= _this.temp_bounds.end_date.getTime()) {
+				_this.stop();
+			}			
+		} else {
+			console.log('giver.give (live) :: further along in time than most recent record!');
 		}
 		
 	}, _this._speed);
 }
 
-// Dates that the giver is iterating over
-Giver.prototype.set_temp_bounds = function(temp_bounds) {
-	
-	if(this.running) {
-		this.stop();	
-	}
-	
-	this.temp_bounds  = temp_bounds;
-	this.current_date = temp_bounds.start_date;
-	return true;
-}
-
-// Time resolution of giver
-Giver.prototype.set_interval = function(interval) {
-	if(this.running) {
-		this.stop();
-	}
-	
-	this.interval = interval;
-	return true;
-}
-
-Giver.prototype._next_period = function() {
-	this.current_date = dateAdd(this.current_date, this.interval, 1);
-	return this.current_date;
-}
 
 // Data playback
 Giver.prototype.get_data = function(cb) {
@@ -157,24 +160,42 @@ Giver.prototype.get_data = function(cb) {
 		_this.get_ts_data.bind(_this),
 		_this.get_grid_data.bind(_this),
 		_this.get_image_data.bind(_this),
-		
 		_this.get_trending.bind(_this)
 	], function (err, results) {
 		// Combine results
-		cb(
-			_.reduce(results, function(a, b) {return _.extend(a, b)}, {})
-		)
-	})
+		cb(_.reduce(results, function(a, b) {return _.extend(a, b)}, {}))
+	});
 }
+
+// <setters>
+// Dates that the giver is iterating over
+Giver.prototype.set_temp_bounds = function(temp_bounds) {
+	this.stop();
+	this.temp_bounds  = temp_bounds;
+	this.current_date = temp_bounds.start_date;
+	return true;
+}
+
+// Time resolution of giver
+Giver.prototype.set_interval = function(interval) {
+	this.stop();
+	this.interval = interval;
+	return true;
+}
+// </setters>
+
 
 // Top users up through the end of this time period
 Giver.prototype.get_trending = function(cb) {
 	var _this = this;
+	
+	const INTERVAL = "hour";
+	
 	var query = {
 		"query" : {
 			"range" : {
 				"created_time" : {
-					"lte" : dateAdd(_this.current_date, _this.interval, 1)
+					"lte" : _this.current_date
 				}
 			}
 		},
@@ -190,7 +211,7 @@ Giver.prototype.get_trending = function(cb) {
 						"date_histogram" : {
 							"field" : "created_time",
 							// "interval" : this.interval
-							"interval" : "day" // HARDCODING TO DAY INTERVAL FOR NOW
+							"interval" : INTERVAL // HARDCODING TO DAY INTERVAL FOR NOW
 						}
 					}
 				}
@@ -206,7 +227,7 @@ Giver.prototype.get_trending = function(cb) {
 						"date_histogram" : {
 							"field" : "created_time",
 							// "interval" : this.interval
-							"interval" : "day" // HARDCODING TO DAY INTERVAL FOR NOW
+							"interval" : INTERVAL // HARDCODING TO DAY INTERVAL FOR NOW
 						}
 					}
 				}
@@ -234,8 +255,8 @@ Giver.prototype.get_ts_data = function(cb) {
 		"query" : {
 			"range" : {
 				"created_time" : {
-					"gte" : _this.current_date,
-					"lte" : dateAdd(_this.current_date, _this.interval, 1)
+					"gte" : helpers.dateAdd(_this.current_date, _this.interval, - _this.trailing_interval),
+					"lte" : _this.current_date
 				}
 			}
 		}
@@ -252,13 +273,12 @@ Giver.prototype.get_ts_data = function(cb) {
 
 Giver.prototype.get_image_data = function(cb) {
 	var _this = this;
-	
 	var query = {
 		"query" : {
 			"range" : {
 				"created_time" : {
-					"gte" : _this.current_date,
-					"lte" : dateAdd(_this.current_date, _this.interval, 1)
+					"gte" : helpers.dateAdd(_this.current_date, _this.interval, - _this.trailing_interval),
+					"lte" : _this.current_date
 				}
 			}
 		}
@@ -294,8 +314,8 @@ Giver.prototype.get_grid_data = function(cb) {
 				"query" : {
 					"range" : {
 						"created_time" : {
-							"gte" : this.current_date,
-							"lte" : dateAdd(this.current_date, this.interval, 1)							
+							"gte" : helpers.dateAdd(this.current_date, this.interval, - this.trailing_interval),
+							"lte" : this.current_date
 						}
 					}
 				},
@@ -327,7 +347,7 @@ Giver.prototype.get_grid_data = function(cb) {
         queryCache : true
 	}).then(function(response) {
 		var buckets = response.aggregations.locs.buckets;
-		var out     = _.map(buckets, function(x) { return geohash2geojson(x['key'], {'count' : x['doc_count']}); })
+		var out     = _.map(buckets, function(x) { return helpers.geohash2geojson(x['key'], {'count' : x['doc_count']}); })
 		cb(null, {'grid' : {"type" : "FeatureCollection", "features" : out}});
 	});
 }
@@ -338,7 +358,7 @@ Giver.prototype.analyze_area = function(area, cb) {
 	
 	// Convert date formats if necessary
 	if(area._southWest) {
-		area = leaflet2elasticsearch(area)
+		area = helpers.leaflet2elasticsearch(area)
 	}
 
 	async.parallel([
@@ -392,7 +412,7 @@ Giver.prototype.analyze_grid_data = function(area, cb) {
         queryCache : true
 	}).then(function(response) {
 		var buckets = response.aggregations.locs.buckets;
-		var out     = _.map(buckets, function(x) { return geohash2geojson(x['key'], {'count' : x['doc_count']}); })
+		var out     = _.map(buckets, function(x) { return helpers.geohash2geojson(x['key'], {'count' : x['doc_count']}); })
 		cb(null, {'grid' : {"type" : "FeatureCollection", "features" : out}});
 	});
 }
@@ -448,8 +468,6 @@ Giver.prototype.analyze_ts_data = function(area, cb) {
 	});
 }
 
-
-
 // ---- Processing functions ----
 function terms_timeseries(x) {
 	return _.map(x, function(b) {
@@ -466,61 +484,6 @@ function terms_timeseries(x) {
 	});
 }
 
-
 // ---- Helper functions -----
-
-function dateAdd(date, interval, units) {
-  var ret = new Date(date); //don't change original date
-  switch(interval.toLowerCase()) {
-    case 'year'   :  ret.setFullYear(ret.getFullYear() + units);  break;
-    case 'quarter':  ret.setMonth(ret.getMonth() + 3*units);  break;
-    case 'month'  :  ret.setMonth(ret.getMonth() + units);  break;
-    case 'week'   :  ret.setDate(ret.getDate() + 7*units);  break;
-    case 'day'    :  ret.setDate(ret.getDate() + units);  break;
-    case 'hour'   :  ret.setTime(ret.getTime() + units*3600000);  break;
-    case 'minute' :  ret.setTime(ret.getTime() + units*60000);  break;
-    case 'second' :  ret.setTime(ret.getTime() + units*1000);  break;
-    default       :  ret = undefined;  break;
-  }
-  return ret;
-}
-
-function geohash2geojson(hash, props) {
-	// props = props | {};
-	
-	var data1 = ngeohash.decode_bbox(hash)
-	
-	// Convert geohash format to d3 path format
-	var datas = []
-	for(i = 0; i <= data1.length; i++) {
-		var tmp = [data1[i%data1.length], data1[(i+1)%data1.length]]
-		if(i%2 == 0) {
-			tmp.reverse()
-		}
-		datas.push(tmp)
-	}
-	
-	return {
-		"type" : "Feature",
-		"geometry" : {
-			"type" : "Polygon",
-			"coordinates" : [datas]
-		},
-		"properties" : props
-	}
-}
-
-function leaflet2elasticsearch(leaflet_bounds) {
-	return {
-		"bottom_right" : {
-			"lat" : leaflet_bounds._southWest.lat, 
-			"lon" : leaflet_bounds._northEast.lng
-		},
-		"top_left" : {
-			"lat" : leaflet_bounds._northEast.lat,
-			"lon" : leaflet_bounds._southWest.lng
-		}
-	}
-}
 
 module.exports = Giver;
