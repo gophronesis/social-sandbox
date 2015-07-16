@@ -43,6 +43,7 @@
           <li id="scrape-name" style="color:white; padding: 5px;"></li>
           <li id="scrape-start-date" style="color:white; padding: 5px;"></li>
           <li id="scrape-end-date" style="color:white; padding: 5px;"></li>
+          <li id="current-date" style="color:red; padding: 5px; padding-left: 20px;"></li>
         </ul>
         <ul class="pull-right">
           <button class="btn btn-primary" id="analyze-btn"> Analyze </button>
@@ -63,10 +64,13 @@
       <div id="map"></div>
     </div>
     <div class="side-bar row-fluid">
-      <div class="col1 col-xs-6" style="height:100%;"></div>
-      <div class="col2 col-xs-6" style="height:100%;"></div>
+      <div id="users" class="col-xs-6" style="height:100%;"></div>
+      <div id="tags"  class="col-xs-6" style="height:100%;"></div>
     </div>
-    <div class="bottom-bar"></div>
+    <div class="bottom-bar row-fluid">
+      <div id="images"   class="col-xs-8" style="height:100%;"></div>
+      <div id="timeseries" class="col-xs-4" style="height:100%;"></div>
+    </div>
   </div>  
   <!-- Trigger the modal with a button -->
 

@@ -64,7 +64,6 @@ $(document).ready(function() {
 // </draw-map>
 
 // <scrape-management>
-// This has side-effects on the server
 function load_scrapes() {
 	socket.emit('get_existing', function(response) {
 		console.log('get_existing :: ', response)
@@ -74,17 +73,10 @@ function load_scrapes() {
 	});
 }
 
-function elasticsearch2leaflet(geo_bounds) {
-	var southWest  = L.latLng(geo_bounds.bottom_right.lat, geo_bounds.top_left.lon);
-	var northEast  = L.latLng(geo_bounds.top_left.lat, geo_bounds.bottom_right.lon);
-	return L.latLngBounds(southWest, northEast);
-}
 
 // Breaking apart the scrape loading and the scrape settings
 function load_scrape(scrape_name) {
 	socket.emit('load_scrape', scrape_name, function(response) {
-		
-		console.log('load_scrape :: ', response);
 		
 		var geo_bounds = elasticsearch2leaflet(response.geo_bounds);
 		
@@ -134,25 +126,28 @@ function set_scrape(scrape_name) {
 		
 		console.log(data);
 		
+		$('#current-date').html(data.current_date);
+		
 		// Draw lines
 		d3.select('#line_svg').remove();
 		line_data.push({'date' : data.date, 'count' : data.count});
+		line_data = _.sortBy(line_data, function(x) {return x.date});
 		draw_line(line_data);
 		
 		// Show images
-	  //   _.map(data.images, function(img) {
+	    _.map(data.images, function(img) {
 			// draw_image(img);
-			// sidebar_image(img);
-	  //   });
+			sidebar_image(img);
+	    });
 
 		var params = {
 			"users" : {
-				"css_selector" : ".side-bar .col1",
-				"color" : "yellow"
+				"css_selector" : ".side-bar #users",
+				"color"        : "yellow"
 			},
 			"tags" : {
-				"css_selector" : ".side-bar .col2",
-				"color" : "limegreen"
+				"css_selector" : ".side-bar #tags",
+				"color"        : "limegreen"
 			}
 		}
 		
@@ -289,7 +284,7 @@ function analyze_area(area) {
 	});
 	
 	function sidebar_image(d) {
-		$('.side-bar').prepend('<img id="' + d.id + '" src="' + d.img_url + '" class="side-bar-image" />');
+		$('#images').prepend('<img id="' + d.id + '" src="' + d.img_url + '" class="side-bar-image" />');
 		$('#' + d.id).dblclick(function(){
 			d3.select(this).style("border-color","red");
 			selectedImages[d.id] = d;
@@ -441,10 +436,10 @@ function analyze_area(area) {
 
 // <GRAPH>
 	function draw_line(data) {
-		var w = $('.bottom-bar').width(),
-		    h = $('.bottom-bar').height();
+		var w = $('#timeseries').width(),
+		    h = $('#timeseries').height();
 
-		var margin = {top: 20, right: 20, bottom: 30, left: 50},
+		var margin = {top: 5, right: 5, bottom: 30, left: 5},
 		    width  = w - margin.left - margin.right,
 		    height = h - margin.top - margin.bottom;
 
@@ -466,7 +461,7 @@ function analyze_area(area) {
 		    .x(function(d) { return x(d.date); })
 		    .y(function(d) { return y(d.count); });
 
-		var svg = d3.select(".bottom-bar").append("svg").attr("id","line_svg")
+		var svg = d3.select("#timeseries").append("svg").attr("id","line_svg")
 		    .attr("width", width + margin.left + margin.right)
 		    .attr("height", height + margin.top + margin.bottom)
 		  .append("g")
@@ -601,3 +596,11 @@ load_scrapes();
 // </init>
 
 })
+
+// <helpers>
+function elasticsearch2leaflet(geo_bounds) {
+	var southWest  = L.latLng(geo_bounds.bottom_right.lat, geo_bounds.top_left.lon);
+	var northEast  = L.latLng(geo_bounds.top_left.lat, geo_bounds.bottom_right.lon);
+	return L.latLngBounds(southWest, northEast);
+}
+// </helpers>

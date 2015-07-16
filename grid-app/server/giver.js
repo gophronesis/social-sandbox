@@ -17,7 +17,7 @@ function Giver(client, socket, index) {
 
 	this.current_date     = undefined;
 
-	this.interval          = 'hour'; // Units
+	this.interval          = 'day'; // Units
 	this.trailing_interval = 1;      // Number of `intervals` backwards we search
 	this.every_interval    = 1;      // Number of `intervals` we skip at a time (in playback)
 	
@@ -167,7 +167,9 @@ Giver.prototype.get_data = function(cb) {
 		_this.replay_trending.bind(_this)
 	], function (err, results) {
 		// Combine results
-		cb(_.reduce(results, function(a, b) {return _.extend(a, b)}, {}))
+		var out = _.reduce(results, function(a, b) {return _.extend(a, b)}, {})
+		out['current_date'] = _this.current_date;
+		cb(out)
 	});
 }
 
