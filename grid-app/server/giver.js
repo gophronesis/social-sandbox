@@ -28,7 +28,7 @@ function Giver(client, socket, index) {
 	this.grid_precision = 6;
 	this.geo_bounds     = undefined
 	
-	this.live     = true;
+	this.live     = false;
 	this.running  = false;	
 	
 	// Private variables
@@ -166,32 +166,18 @@ Giver.prototype.give = function() {
 Giver.prototype.get_data = function(cb) {
 	var _this = this;
 	
-	if(this.live) {
-		async.parallel([
-			_this.live_ts_data.bind(_this),
-			_this.live_grid_data.bind(_this),
-			_this.live_image_data.bind(_this)
-			// _this.live_trending.bind(_this)
-		], function (err, results) {
-			// Combine results
-			var out = _.reduce(results, function(a, b) {return _.extend(a, b)}, {})
-			out['current_date'] = _this.current_date;
-			console.log('get_data :: ', out);
-			cb(out)
-		});		
-	} else {
-		async.parallel([
-			_this.replay_ts_data.bind(_this),
-			_this.replay_grid_data.bind(_this),
-			_this.replay_image_data.bind(_this),
-			_this.replay_trending.bind(_this)
-		], function (err, results) {
-			// Combine results
-			var out = _.reduce(results, function(a, b) {return _.extend(a, b)}, {})
-			out['current_date'] = _this.current_date;
-			cb(out)
-		});		
-	}
+	async.parallel([
+		_this.live_ts_data.bind(_this),
+		_this.live_grid_data.bind(_this),
+		_this.live_image_data.bind(_this)
+		// _this.live_trending.bind(_this)
+	], function (err, results) {
+		// Combine results
+		var out = _.reduce(results, function(a, b) {return _.extend(a, b)}, {})
+		out['current_date'] = _this.current_date;
+		console.log('get_data :: ', out);
+		cb(out)
+	});		
 }
 
 // <setters>
@@ -211,38 +197,7 @@ Giver.prototype.set_interval = function(interval) {
 }
 // </setters>
 
-// <replaying-data>
-Giver.prototype.replay_grid_data = function(cb) {
-	var start_date = helpers.dateAdd(this.current_date, this.interval, - this.trailing_interval);
-	var end_date   = this.current_date;
-	this.get_grid_data(start_date, end_date, cb)
-}
-
-Giver.prototype.replay_image_data = function(cb) {
-	var start_date = helpers.dateAdd(this.current_date, this.interval, - this.trailing_interval);
-	var end_date   = this.current_date;
-	this.get_image_data(start_date, end_date, cb)
-}
-
-Giver.prototype.replay_ts_data = function(cb) {
-	var end_date   = this.current_date;
-	var start_date = helpers.dateAdd(this.current_date, this.interval, - this.trailing_interval);
-	this.get_ts_data(start_date, end_date, cb)
-}
-
-Giver.prototype.replay_trending = function(cb) {
-	this.get_trending(cb)
-}
-// </replaying-data>
-
-// <live-data-stubs>
-// NB : Need to figure out how these work -- the main difference is that 
-// we're going to be polling far more frequently than the data is updated.  In the
-// playback mode we show a series of non-overlapping snapshots of the data, but in 
-// live mode that's not going to work.  For the grid data, we should show a heatmap
-// for the past X hours, images as they appear, ts according to comment in that function
-// (probably). Trending things are fine (for now) because we're naively recomputing them
-// each time
+// <live-data>
 Giver.prototype.live_grid_data = function(cb) {
 	// Show images from past trailing interval -- this way, if we're polling
 	// every second, the heatmap remains meaningful
@@ -262,24 +217,20 @@ Giver.prototype.live_image_data = function(cb) {
 Giver.prototype.live_ts_data = function(cb) {
 	// This one is a little tricker -- I think we want to take the floor
 	// of the current time interval, and show the count since then increasing
-	// on the d3 plot, then "commit" that count at the end of the hour and take
-	// one step forward on the x-axis.  The committing can be done on the client
-	// according to a flag that gets sent from the server.
+	// on the d3 plot, then "commit" that count at the end of the interval and take
+	// one step forward on the x-axis.  The committing is done on the client by checking
+	// to see if the "full_unit" flag is set.
 
 	var end_date   = this.current_date 
-	
-	// Since start of last interval
 	var start_date = moment(+this.current_date - (+this.every_interval)).startOf(this.interval).toDate() 
-	
-	var full_unit = (+ moment(this.current_date).startOf(this.interval).toDate()) == (+ this.current_date)
+	var full_unit  = (+ moment(this.current_date).startOf(this.interval).toDate()) == (+ this.current_date)
 	this.get_ts_data(start_date, end_date, full_unit, cb)
 }
 
 Giver.prototype.live_trending = function(cb) {
-	// Works from beginning of time, so this is fine
 	this.get_trending(cb)
 }
-//</live-data-stubs>
+//</live-data>
 
 
 // Top users up through the end of this time period

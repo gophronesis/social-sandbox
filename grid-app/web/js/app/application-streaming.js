@@ -149,7 +149,7 @@ function set_scrape(scrape_name) {
 		// Show images
 	    _.map(data.images, function(img) {
 			// draw_image(img);
-			// sidebar_image(img);
+			sidebar_image(img);
 	    });
 
 		// var params = {
