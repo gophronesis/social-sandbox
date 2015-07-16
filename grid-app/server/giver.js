@@ -17,14 +17,16 @@ function Giver(client, socket, index) {
 
 	this.current_date     = undefined;
 
-	this.interval          = 'hour';   // Units
-	this.trailing_interval = 1;        // Number of `intervals` backwards we search (i.e. for grid)
-	this.every_interval    = 1 / (2); // Number of `intervals` we skip at a time (in playback)
-	
-	// ^^ When we're live, we might want trailing_interval > 1, 
-	// at least for the grid, so we can show the heatmap for, say,
-	// the last hour even when we're updating everything 10s
-	
+	// Streaming Settings
+	//
+	// With these params, we skip ahead 'every_interval' 'intervals' every '_speed' milliseconds,
+	// and show data from the paste 'trailing_interval' 'intervals' on the grid heatmap.
+	//
+	// NB : In live mode, _speed should match every_interval
+	this.interval          = 'hour';  
+	this.trailing_interval = 1;        
+	this.every_interval    = 1 / (2);  
+		
 	this.grid_precision = 6;
 	this.geo_bounds     = undefined
 	
@@ -32,11 +34,9 @@ function Giver(client, socket, index) {
 	this.running  = false;	
 	
 	// Private variables
-	this._speed      = 3000; // Speed of playback
+	this._speed      = 3000; // Speed of playback (in milliseconds)
 	this._process    = undefined;
 	this._max_images = 10;
-	// In (actual) live mode, _speed should match every_interval
-	// In replay mode, every_interval should match trailing_interval
 }
 
 // <set-scrape>
