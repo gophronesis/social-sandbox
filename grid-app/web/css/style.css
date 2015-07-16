@@ -9,7 +9,7 @@
   
   #map-wrapper {
     position : absolute;
-    width    : 60%;
+    width    : 66%;
     height   : 75%;
   }
 
@@ -82,6 +82,10 @@
     background-color : rgb(36, 35, 35);
     z-index : 3;
     border : 1px solid grey;
+  }
+
+  #images {
+    overflow-y : auto;
   }
 
 /**/

@@ -17,9 +17,9 @@ function Giver(client, socket, index) {
 
 	this.current_date     = undefined;
 
-	this.interval          = 'day'; // Units
-	this.trailing_interval = 1;      // Number of `intervals` backwards we search
-	this.every_interval    = 1;      // Number of `intervals` we skip at a time (in playback)
+	this.interval          = 'hour';   // Units
+	this.trailing_interval = 1;        // Number of `intervals` backwards we search (i.e. for grid)
+	this.every_interval    = 1 / (12); // Number of `intervals` we skip at a time (in playback)
 	
 	// ^^ When we're live, we might want trailing_interval > 1, 
 	// at least for the grid, so we can show the heatmap for, say,
@@ -28,12 +28,15 @@ function Giver(client, socket, index) {
 	this.grid_precision = 6;
 	this.geo_bounds     = undefined
 	
+	this.live     = true;
 	this.running  = false;	
 	
 	// Private variables
-	this._speed   = 1000;
-	this._process = undefined;
-	
+	this._speed      = 1000; // Speed of playback
+	this._process    = undefined;
+	this._max_images = 10;
+	// In (actual) live mode, _speed should match every_interval
+	// In replay mode, every_interval should match trailing_interval
 }
 
 // <set-scrape>
@@ -67,7 +70,7 @@ Giver.prototype.get_scrape = function(scrape_name, cb) {
 			"scrape_name" : scrape_name,
 			"geo_bounds"  : response.aggregations.geo_bounds.bounds,
 			"temp_bounds" : {
-				"start_date" : response.aggregations.temp_bounds.min_as_string,
+				"start_date" : "2015-07-16T00:00:00.000Z", //response.aggregations.temp_bounds.min_as_string,
 				"end_date"   : response.aggregations.temp_bounds.max_as_string
 			}
 		});
@@ -144,12 +147,15 @@ Giver.prototype.give = function() {
 			});
 		}
 		
-		if(!_this.live) {
-			if(_this.current_date.getTime() >= _this.temp_bounds.end_date.getTime()) {
+		
+		if(_this.current_date.getTime() >= _this.temp_bounds.end_date.getTime()) {
+			
+			if(!_this.live) {
 				_this.stop();
-			}			
-		} else {
-			console.log('giver.give (live) :: further along in time than most recent record!');
+			} else {
+				console.log('giver.give (live) :: further along in time than most recent record!');		
+			}
+			
 		}
 		
 	}, _this._speed);
@@ -160,17 +166,32 @@ Giver.prototype.give = function() {
 Giver.prototype.get_data = function(cb) {
 	var _this = this;
 	
-	async.parallel([
-		_this.replay_ts_data.bind(_this),
-		_this.replay_grid_data.bind(_this),
-		_this.replay_image_data.bind(_this),
-		_this.replay_trending.bind(_this)
-	], function (err, results) {
-		// Combine results
-		var out = _.reduce(results, function(a, b) {return _.extend(a, b)}, {})
-		out['current_date'] = _this.current_date;
-		cb(out)
-	});
+	if(this.live) {
+		async.parallel([
+			_this.live_ts_data.bind(_this),
+			_this.live_grid_data.bind(_this),
+			_this.live_image_data.bind(_this)
+			// _this.live_trending.bind(_this)
+		], function (err, results) {
+			// Combine results
+			var out = _.reduce(results, function(a, b) {return _.extend(a, b)}, {})
+			out['current_date'] = _this.current_date;
+			console.log('get_data :: ', out);
+			cb(out)
+		});		
+	} else {
+		async.parallel([
+			_this.replay_ts_data.bind(_this),
+			_this.replay_grid_data.bind(_this),
+			_this.replay_image_data.bind(_this),
+			_this.replay_trending.bind(_this)
+		], function (err, results) {
+			// Combine results
+			var out = _.reduce(results, function(a, b) {return _.extend(a, b)}, {})
+			out['current_date'] = _this.current_date;
+			cb(out)
+		});		
+	}
 }
 
 // <setters>
@@ -223,15 +244,15 @@ Giver.prototype.replay_trending = function(cb) {
 // (probably). Trending things are fine (for now) because we're naively recomputing them
 // each time
 Giver.prototype.live_grid_data = function(cb) {
-	// var end_date   =  new Date() // current time
-	// var start_date =  helpers.dateAdd(this.current_date, 'hour', -1) // One hour in past
-	// this.get_grid_data(start_date, end_date, cb)
+	var start_date = helpers.dateAdd(this.current_date, this.interval, -this.trailing_interval) // Over trailing
+	var end_date   = this.current_date;
+	this.get_grid_data(start_date, end_date, cb)
 }
 
 Giver.prototype.live_image_data = function(cb) {
-	// var end_date   = new Date() // current time
-	// var start_date = helpers.dateAdd(this.current_date, this.interval, -1) // Since last poll
-	// this.get_image_data(start_date, end_date, cb)
+	var end_date   = this.current_date;
+	var start_date = helpers.dateAdd(this.current_date, this.interval, -this.every_interval) // Since last poll
+	this.get_image_data(start_date, end_date, cb)
 }
 
 Giver.prototype.live_ts_data = function(cb) {
@@ -243,12 +264,13 @@ Giver.prototype.live_ts_data = function(cb) {
 	//
 	// vv This should work vv
 	//
-	// var end_date   =  new Date() // current time
-	// var start_date = moment().startOf('hour').toDate() // Since start of hour
-	// this.get_ts_data(start_date, end_date, cb)
+	var end_date   = this.current_date // current time
+	var start_date = moment(this.current_date).startOf('hour').toDate() // Since start of hour
+	
+	this.get_ts_data(start_date, end_date, cb)
 }
 
-Giver.prototype.replay_trending = function(cb) {
+Giver.prototype.live_trending = function(cb) {
 	// Works from beginning of time, so this is fine
 	this.get_trending(cb)
 }
@@ -311,7 +333,6 @@ Giver.prototype.get_trending = function(cb) {
 		type  : this.scrape_name,
 		body  : query
 	}).then(function(response) {
-		console.log('response.aggregations.tags.buckets', response.aggregations.tags.buckets);
 		cb(null, {
 			'users' : terms_timeseries(response.aggregations.users.buckets),
 			'tags'  : terms_timeseries(response.aggregations.tags.buckets)
@@ -320,6 +341,7 @@ Giver.prototype.get_trending = function(cb) {
 }
 
 Giver.prototype.get_ts_data = function(start_date, end_date, cb) {
+	
 	var _this = this;
 	var query = {
 		"_source" : ['created_time'],
@@ -338,13 +360,19 @@ Giver.prototype.get_ts_data = function(start_date, end_date, cb) {
 		type  : this.scrape_name,
 		body  : query
 	}).then(function(response) {
-		cb(null, {"count" : response.hits.total, "date" : end_date});
+		cb(null, {
+			"count"    : response.hits.total, 
+			"date"     : end_date, 
+			"timespan" : (+end_date - (+start_date))
+		});
 	});
+	
 }
 
 Giver.prototype.get_image_data = function(start_date, end_date, cb) {
 	var _this = this;
 	var query = {
+		"size"  : this._max_images,
 		"query" : {
 			"range" : {
 				"created_time" : {
@@ -354,6 +382,8 @@ Giver.prototype.get_image_data = function(start_date, end_date, cb) {
 			}
 		}
 	}
+	
+	console.log('query', JSON.stringify(query));
 	
 	this.client.search({
 		index : this.index,

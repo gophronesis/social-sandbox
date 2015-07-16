@@ -128,8 +128,11 @@ function set_scrape(scrape_name) {
 		
 		$('#current-date').html(data.current_date);
 		
-		// Draw lines
+		// // Draw lines
 		d3.select('#line_svg').remove();
+		if(data.timespan != 0) {
+			line_data.pop();
+		}
 		line_data.push({'date' : data.date, 'count' : data.count});
 		line_data = _.sortBy(line_data, function(x) {return x.date});
 		draw_line(line_data);
@@ -140,22 +143,22 @@ function set_scrape(scrape_name) {
 			sidebar_image(img);
 	    });
 
-		var params = {
-			"users" : {
-				"css_selector" : ".side-bar #users",
-				"color"        : "yellow"
-			},
-			"tags" : {
-				"css_selector" : ".side-bar #tags",
-				"color"        : "limegreen"
-			}
-		}
+		// var params = {
+		// 	"users" : {
+		// 		"css_selector" : ".side-bar #users",
+		// 		"color"        : "yellow"
+		// 	},
+		// 	"tags" : {
+		// 		"css_selector" : ".side-bar #tags",
+		// 		"color"        : "limegreen"
+		// 	}
+		// }
 		
-		d3.select(params.users.css_selector).selectAll("svg").remove();
-		draw_trending(data.users, params.users);
+		// d3.select(params.users.css_selector).selectAll("svg").remove();
+		// draw_trending(data.users, params.users);
 		
-		d3.select(params.tags.css_selector).selectAll("svg").remove();
-		draw_trending(data.tags, params.tags);
+		// d3.select(params.tags.css_selector).selectAll("svg").remove();
+		// draw_trending(data.tags, params.tags);
 		
 		// Grid
 		if(!grid) {
@@ -229,13 +232,15 @@ function analyze_area(area) {
 	// the property of the data
 	// Could probably match an ID of the underlying data to the updated data...
 	function draw_grid(grid, data) {
+		console.log('draw_grid :: ', grid, ' :: ', data);
 		grid.g.selectAll("path").remove()
 		var feature = grid.g.selectAll("path").data(data.features).enter().append("path");
 		
 		feature.attr('d', project)
 			.attr('opacity', function(d) {
 				// return Math.random()
-				return Math.log10(d.properties.count) / 10; // Hardcoded scaling 
+				// return Math.log10(d.properties.count) / 10; // Hardcoded scaling 
+				return d.properties.count;
 			})
 			.attr('fill', 'red')
 	}
@@ -449,9 +454,7 @@ function analyze_area(area) {
 		var x = d3.time.scale().range([0, width]);
 		var y = d3.scale.linear().range([height, 0]);
 
-		var xAxis = d3.svg.axis()
-		    .scale(x)
-		    .orient("bottom");
+		var xAxis = d3.svg.axis().scale(x).orient("bottom");
 
 		var yAxis = d3.svg.axis()
 		    .scale(y)
@@ -475,7 +478,7 @@ function analyze_area(area) {
 		});
 
 		x.domain(d3.extent(_data, function(d) { return d.date; }));
-		y.domain(d3.extent(_data, function(d) { return d.count; }));
+		y.domain([0, d3.max(_data, function(d) { return d.count; })]);
 			
 		svg.append("g")
 		  .attr("class", "x axis")
