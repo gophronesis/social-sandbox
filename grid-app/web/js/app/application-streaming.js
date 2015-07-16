@@ -130,17 +130,26 @@ function set_scrape(scrape_name) {
 		
 		// // Draw lines
 		d3.select('#line_svg').remove();
-		if(data.timespan != 0) {
-			line_data.pop();
-		}
+		
+		// Add new information
 		line_data.push({'date' : data.date, 'count' : data.count});
+		// Make sure it's sorted
 		line_data = _.sortBy(line_data, function(x) {return x.date});
+		// Remove second to last element
+		if(line_data.length > 1) {
+			line_data.splice(-2, 1);	
+		}
+		// If we just finished a time unit, we add another one for protection from the next slice
+		if(data.full_unit) { 
+			line_data.push({'date' : data.date, 'count' : 0});
+		}
+		
 		draw_line(line_data);
 		
 		// Show images
 	    _.map(data.images, function(img) {
 			// draw_image(img);
-			sidebar_image(img);
+			// sidebar_image(img);
 	    });
 
 		// var params = {

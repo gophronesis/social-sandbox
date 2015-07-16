@@ -19,7 +19,7 @@ function Giver(client, socket, index) {
 
 	this.interval          = 'hour';   // Units
 	this.trailing_interval = 1;        // Number of `intervals` backwards we search (i.e. for grid)
-	this.every_interval    = 1 / (12); // Number of `intervals` we skip at a time (in playback)
+	this.every_interval    = 1 / (2); // Number of `intervals` we skip at a time (in playback)
 	
 	// ^^ When we're live, we might want trailing_interval > 1, 
 	// at least for the grid, so we can show the heatmap for, say,
@@ -32,7 +32,7 @@ function Giver(client, socket, index) {
 	this.running  = false;	
 	
 	// Private variables
-	this._speed      = 1000; // Speed of playback
+	this._speed      = 3000; // Speed of playback
 	this._process    = undefined;
 	this._max_images = 10;
 	// In (actual) live mode, _speed should match every_interval
@@ -212,10 +212,10 @@ Giver.prototype.set_interval = function(interval) {
 // </setters>
 
 // <replaying-data>
-Giver.prototype.replay_ts_data = function(cb) {
+Giver.prototype.replay_grid_data = function(cb) {
 	var start_date = helpers.dateAdd(this.current_date, this.interval, - this.trailing_interval);
 	var end_date   = this.current_date;
-	this.get_ts_data(start_date, end_date, cb)
+	this.get_grid_data(start_date, end_date, cb)
 }
 
 Giver.prototype.replay_image_data = function(cb) {
@@ -224,10 +224,10 @@ Giver.prototype.replay_image_data = function(cb) {
 	this.get_image_data(start_date, end_date, cb)
 }
 
-Giver.prototype.replay_grid_data = function(cb) {
-	var start_date = helpers.dateAdd(this.current_date, this.interval, - this.trailing_interval);
+Giver.prototype.replay_ts_data = function(cb) {
 	var end_date   = this.current_date;
-	this.get_grid_data(start_date, end_date, cb)
+	var start_date = helpers.dateAdd(this.current_date, this.interval, - this.trailing_interval);
+	this.get_ts_data(start_date, end_date, cb)
 }
 
 Giver.prototype.replay_trending = function(cb) {
@@ -244,14 +244,18 @@ Giver.prototype.replay_trending = function(cb) {
 // (probably). Trending things are fine (for now) because we're naively recomputing them
 // each time
 Giver.prototype.live_grid_data = function(cb) {
+	// Show images from past trailing interval -- this way, if we're polling
+	// every second, the heatmap remains meaningful
 	var start_date = helpers.dateAdd(this.current_date, this.interval, -this.trailing_interval) // Over trailing
 	var end_date   = this.current_date;
 	this.get_grid_data(start_date, end_date, cb)
 }
 
 Giver.prototype.live_image_data = function(cb) {
-	var end_date   = this.current_date;
+	// Only show images since last poll
+	
 	var start_date = helpers.dateAdd(this.current_date, this.interval, -this.every_interval) // Since last poll
+	var end_date   = this.current_date;
 	this.get_image_data(start_date, end_date, cb)
 }
 
@@ -261,13 +265,14 @@ Giver.prototype.live_ts_data = function(cb) {
 	// on the d3 plot, then "commit" that count at the end of the hour and take
 	// one step forward on the x-axis.  The committing can be done on the client
 	// according to a flag that gets sent from the server.
-	//
-	// vv This should work vv
-	//
-	var end_date   = this.current_date // current time
-	var start_date = moment(this.current_date).startOf('hour').toDate() // Since start of hour
+
+	var end_date   = this.current_date 
 	
-	this.get_ts_data(start_date, end_date, cb)
+	// Since start of last interval
+	var start_date = moment(+this.current_date - (+this.every_interval)).startOf(this.interval).toDate() 
+	
+	var full_unit = (+ moment(this.current_date).startOf(this.interval).toDate()) == (+ this.current_date)
+	this.get_ts_data(start_date, end_date, full_unit, cb)
 }
 
 Giver.prototype.live_trending = function(cb) {
@@ -340,7 +345,7 @@ Giver.prototype.get_trending = function(cb) {
 	});
 }
 
-Giver.prototype.get_ts_data = function(start_date, end_date, cb) {
+Giver.prototype.get_ts_data = function(start_date, end_date, full_unit, cb) {
 	
 	var _this = this;
 	var query = {
@@ -361,9 +366,9 @@ Giver.prototype.get_ts_data = function(start_date, end_date, cb) {
 		body  : query
 	}).then(function(response) {
 		cb(null, {
-			"count"    : response.hits.total, 
-			"date"     : end_date, 
-			"timespan" : (+end_date - (+start_date))
+			"count"     : response.hits.total, 
+			"date"      : end_date, 
+			"full_unit" : full_unit
 		});
 	});
 	
