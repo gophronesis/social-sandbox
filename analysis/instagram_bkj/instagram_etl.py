@@ -2,7 +2,7 @@ import json
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan, streaming_bulk
 
-INDEX    = 'instagram'
+INDEX    = 'instagram_remap'
 HOSTNAME = 'localhost'
 HOSTPORT = 9205
 OUTPATH  = 'instagram.json.txt'
@@ -27,6 +27,6 @@ with open(OUTPATH, 'wb') as f:
         counter += 1
         f.write(json.dumps(a))
         f.write('\n')
-        if counter % 100 == 0:
+        if counter % 1000 == 0:
             print counter
 

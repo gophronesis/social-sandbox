@@ -44,7 +44,7 @@ module.exports = {
 	},
 
 	leaflet2elasticsearch : function(leaflet_bounds) {
-		return {
+		var out = {
 			"bottom_right" : {
 				"lat" : leaflet_bounds._southWest.lat, 
 				"lon" : leaflet_bounds._northEast.lng
@@ -54,5 +54,7 @@ module.exports = {
 				"lon" : leaflet_bounds._southWest.lng
 			}
 		}
+		console.log('out', out);
+		return out;
 	}
 }
