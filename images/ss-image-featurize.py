@@ -5,7 +5,6 @@
 import os, sys, itertools, zipfile
 import numpy as np
 import pandas as pd
-from PIL import Image
 
 # Utility for chunkign
 def chunks(l, n):
@@ -39,7 +38,7 @@ outfile = open('baltimore_features.csv', 'ab')
 
 counter = 0
 all_chunks = chunks(files, CHUNK_SIZE)
-for chunk in all_chunks:
+for chunk in all_chunks[2158:]:
     print 'chunk :: %d' % counter
     
     cf.set_batch_size(len(chunk))
@@ -50,9 +49,9 @@ for chunk in all_chunks:
     cf.load_files()
     cf.forward()
     
-    feats = pd.DataFrame(cf.featurize())
+    feats       = pd.DataFrame(cf.featurize())
     feats['id'] = chunk
-    feats = feats.drop(cf.errs)
+    feats       = feats.drop(cf.errs)
     
     print 'saving...'
     # Should really be saving in a sparse format
@@ -61,3 +60,29 @@ for chunk in all_chunks:
     counter += 1
 
 outfile.close()
+
+
+# ---
+# Migrating to h5py
+
+import io, h5py
+import numpy as np
+
+infile  = io.open('baltimore_features.csv', 'rb')
+outfile = h5py.File('baltimore_features.hdf5', 'w')
+
+counter = 0
+for l in iter(infile):
+    counter += 1
+    if counter % 100 == 0:
+        print counter
+    
+    x   = l.strip().split('\t')
+    key = x[-1]
+    val = map(float, x[:-1])
+    _ = outfile.create_dataset(key, data = np.array(val))
+
+outfile.close()
+
+
+

@@ -1,30 +1,5 @@
-init <- function() {
-    require(compiler)
-    enableJIT(3)
-
-    options(stringsAsFactors = F)
-    require(geosphere)
-    require(plyr)
-    require(lubridate)
-    require(lsa)
-    require(colorout)
-    require(itertools)
-    require(doMC)
-    registerDoMC(cores = 5)
-}
-
-geosubset <- function(df, min_lon, min_lat, max_lon, max_lat) {
-    df$lat > min_lat & 
-    df$lat < max_lat & 
-    df$lon > min_lon & 
-    df$lon < max_lon
-}
-
-open_imgs <- function(pths) {
-    pths2 <- file.path('~/data/images/baltimore/images', paste0(pths, '.jpg'))
-    sapply(pths2, function(p) { system(paste('open', p)) })
-}
-
+require(scales)
+source('analysis/instagram_bkj/seed_func.R')
 init()
 
 # --
@@ -46,31 +21,9 @@ saveRDS(x, 'scratch/x.rds')
 # ---- Seeding -----
 # Get near in time, space and image content
 
-close_in_time <- function(x, N_MINUTES = 30) {
-    N_SECONDS <- N_MINUTES * 60
-    
-    vec  <- as.numeric(x$date)
-    res  <- rep(NA, nrow(x))
-    lead <- follow <- 1
-    while(lead <= nrow(x)) {
-        d <- vec[lead] - vec[follow]
-        if(d > (N_SECONDS)) {
-            follow <- follow + 1
-        } else {
-            res[lead] <- follow
-            lead      <- lead + 1
-        }
-    }
-    
-    res
-}
-
-close_in_space <- function(ind, N_METERS = 100) {
-    sel   <- res[ind] : ind
-    gdiff <- distCosine(x[ind, c('lon', 'lat')], x[sel, c('lon', 'lat')])
-    
-    sel[gdiff <= N_METERS]    
-}
+# < 30 minutes
+# < 100 meters
+# > 95 percentile random image similarity
 
 res          <- close_in_time(x)
 
@@ -99,20 +52,6 @@ write.table(x$id, 'image_all.csv',
 
 
 # ... Featurize in python, then reload ...
-
-load_img <- function() {
-    img    <- readRDS('images/baltimore_features_v2.rds')
-    img$id <- gsub('.*/images/|\\.jpg', '', img$id)
-
-    # >> !!
-    # What's the deal with duplicate names?
-    img <- img[-which(duplicated(img$id)),]
-    # << !!
-
-    rownames(img) <- img$id
-    img$id        <- NULL
-    as.matrix(img)
-}
 
 img  <- load_img()
 
@@ -160,7 +99,8 @@ fin <- lapply(img_sims, function(i) {
     names(which(i > img_thresh))    
 })
 names(fin) <- names(img_sims)
-fin <- fin[sapply(fin, length) > 1]
+fin <- fin[sapply(fin, length) > 0]
+
 
 i   <- 1000
 ids <- c(fin[[i]], names(fin)[i])
@@ -169,35 +109,69 @@ open_imgs(ids)
 # ----------------------------------------------------------
 # -- Expansion Rule --
 
-lfin       <- ldply(fin, .fun = as.matrix)
-levs       <- unique(c(lfin[['.id']], lfin[['1']]))
-lfin$hub   <- as.numeric(factor(lfin[['.id']], levels = levs))
-lfin$spoke <- as.numeric(factor(lfin[['1']],   levels = levs))
+lfin_all <- ldply(img_sims[sapply(img_sims, length) > 0], function(x) {
+    data.frame(id = names(x), img_sim = x)
+}, .parallel = TRUE)
+names(lfin_all) <- c('source', 'target', 'sim')
+lfin_all <- lfin_all[lfin_all$source != lfin_all$target,]
+
+lfin       <- lfin_all[lfin_all$sim > img_thresh,]
+levs       <- unique(c(lfin[['source']], lfin[['target']]))
+lfin$hub   <- as.numeric(factor(lfin[['source']], levels = levs))
+lfin$spoke <- as.numeric(factor(lfin[['target']],   levels = levs))
 
 # two directional (for historical)
-sm <- t(sparseMatrix(i = lfin$hub, j = lfin$spoke, dims = c(length(levs), length(levs))))
-mm <- sm | t(sm)
-while(TRUE) {
-    mm_prev <- mm
-    for(i in 1:3) {
-        mm <- (mm %*% mm) > 0    
+ccomps <- function(lfin, levs, backwards_only = FALSE) {
+    sm <- t(sparseMatrix(i = lfin$hub, j = lfin$spoke, dims = c(length(levs), length(levs))))
+    rownames(sm) <- colnames(sm) <- levs
+    if(!backwards_only) { mm <- sm | t(sm) } else {mm <- t(mm)}
+    while(TRUE) {
+        mm_prev <- mm
+        for(i in 1:3) {
+            mm <- (mm %*% mm) > 0    
+        }
+        cat('.')
+        if(sum(mm != mm_prev) == 0) break
     }
-    cat('.')
-    if(sum(mm != mm_prev) == 0) break
+    if(!backwards_only) { mm <- mm | t(mm) }
+    mm
 }
-m3 <- mm | t(mm)
 
 # Equivalence classes give us events
-events     <- unique(alply(m3, 1, which))
-events     <- lapply(events, function(i) levs[i])
-big_events <- events[sapply(events, length) > 3]
+cc            <- ccomps(lfin, levs, backwards_only = FALSE)
+events        <- unique(alply(m3, 1, which, .parallel = TRUE))
+events        <- lapply(events, function(i) levs[i])
+names(events) <- 1:length(events)
+
+event_mapping        <- ldply(events, as.matrix)
+names(event_mapping) <- c('event_id', '.id')
+
+lfin <- merge(lfin, event_mapping)
+
+saveRDS(lfin, 'scratch/lfin.rds')
+saveRDS(events, 'scratch/events.rds')
+
+# --
+big_events <- events[sapply(events, length) > 20]
+
+tmp <- ldply(big_events, function(ids) {
+    data.frame(
+        count = length(ids),
+        start = min(x$date[x$id %in% ids]),
+        end   = max(x$date[x$id %in% ids])
+    )    
+}, .parallel = TRUE)
+head(tmp)
 
 # Inspecting events
+
+sort(sapply(big_events, length))
+
 i    <- which(sapply(big_events, length) == 484)
-xsel <- match(big_events[[i]], x$id)
+xsel <- which(x$id %in% big_events[[i]])
 
 # Text
-sample(x$text[xsel])
+sample(x$text[xsel], 10)
 
 # Dates
 range(x$date[xsel])
@@ -207,6 +181,112 @@ open_imgs(sample(big_events[[i]], 10))
 
 # Map
 plot(head(x[,c('lon', 'lat')], 10000), cex = .2)
-points(x[xsel, c('lon', 'lat')], col = 'red')
+points(x[xsel, c('lon', 'lat')], col = alpha('red', .01), cex = 3)
+
+# Network
+lsel <- lfin[['.id']] %in% x$id[xsel]
+tmp  <- lfin[lsel, ]
+d3SimpleNetwork(
+    tmp[, c('hub', 'spoke', 'event_id')], 
+    width = 5000, height = 5000,
+    file = '~/Desktop/test.html'
+)
+
+# << 
+# How spread are the baseball tweets
+
+plot(jitter(as.matrix(x[xsel, c('lon', 'lat')]), amount = .00001), col = alpha('black', .5), cex = 2)
+
+dim(unique(x[xsel,c('lon', 'lat')]))
 
 
+# >>
+
+# -------------
+# Birth of an event
+
+ccb <- ccomps(lfin, levs, backwards_only = TRUE)
+
+i         <- which(sapply(big_events, length) == 642)
+
+tmpsel <- big_events[[i]]
+plot(rowSums(ccb[tmpsel,])[1:200], type = 'l')
+
+plot(rowSums(ccb) ~ x$date[match(rownames(ccb), x$id)], type = 'h')
+
+
+
+tm <- x$date[x$id == big_events[[i]][100]]
+sel <- x$id[which(abs(tm - x$date) < (60 * 60))]
+
+
+
+plot(rowSums(ccb[(tmpsel - 1000) : tmpsel,]), type = 'l')
+
+
+ccb[tmpsel, tmpsel]
+
+k <- 1
+which(ccb[big_events[[i]][k],])
+k <- k + 1
+
+# --------------------------------------------------------
+# -- Fiddling with parameters --
+
+i   <- 1000
+sel <- which(x$id == names(fin)[i])
+
+make_edges <- function(id, t, d, i) {
+    cat('-')
+    if(!(id %in% x$id)) return
+    
+    ths <- x[x$id == id,]
+    
+    # Time
+    time_dist <- ths$date - x$date
+    sub       <- x[abs(time_dist) < (t * 60),,drop=F] # Go forwards and backwards in time
+    if(nrow(sub) == 0) return
+    
+    # Geo
+    geo_dist <- distCosine(ths[, c('lon', 'lat')], sub[, c('lon', 'lat')])
+    sub      <- sub[geo_dist < d,,drop=F]
+    if(nrow(sub) == 0) return
+    
+    # # Image
+    sub     <- sub[sub$id %in% rownames(img),,drop=F]
+    v1      <- img[ths$id,]
+    vs      <- img[sub$id,,drop=F]
+    
+    img_sim <- apply(vs, 1, cosine, v1)
+    sub     <- sub[img_sim > i,]
+    if(nrow(sub) == 0) return
+    
+    unlist(sub$id)
+}
+
+grid <- expand.grid(
+    # t = seq(10, 60,  by = 10),
+    d = seq(10, 300, by = 25)
+    # i = seq(10, 100, by = 10)
+)
+
+out <- c()
+for(r in 1:nrow(grid)) {
+    id <- names(fin)[500]
+    t  <- 30
+    d  <- grid$d[r]
+    i  <- .43
+
+    new_edges <- id
+    all_edges <- c()
+
+    while(length(new_edges) > 0) {
+        edge_candidates <- unlist(llply(new_edges, make_edges, t, d, i, .parallel = TRUE))
+        new_edges       <- setdiff(edge_candidates, all_edges)
+        all_edges       <- c(all_edges, new_edges)
+        cat('new_edges ::', length(new_edges), '\n')
+    }
+
+    out <- c(out, length(all_edges))
+    print(out)
+}
