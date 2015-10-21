@@ -65,24 +65,40 @@ outfile.close()
 # ---
 # Migrating to h5py
 
-import io, h5py
+import io, h5py, re
 import numpy as np
 
 infile  = io.open('baltimore_features.csv', 'rb')
-outfile = h5py.File('baltimore_features.hdf5', 'w')
+outfile = h5py.File('baltimore_features.h5', 'w')
 
 counter = 0
-for l in iter(infile):
+for l in infile:
     counter += 1
-    if counter % 100 == 0:
+    if counter % 500 == 0:
         print counter
     
     x   = l.strip().split('\t')
-    key = x[-1]
+    key = re.sub('.*/|\\.jpg', '', x[-1])
     val = map(float, x[:-1])
-    _ = outfile.create_dataset(key, data = np.array(val))
+    try:
+        _ = outfile.create_dataset(key, data = np.array(val))
+    except:
+        print 'error at :: %d' % counter 
 
 outfile.close()
 
 
+# --
+# Experiments with concurrent writing + reading
+import io, h5py, re
+import numpy as np
 
+# Server:
+f = h5py.File("swmr.h5", 'w', libver='latest')
+arr = np.array([1,2,3,4])
+dset = f.create_dataset("data", chunks=(2,), maxshape=(None,), data=arr)
+f.swmr_mode = True
+
+# Client:
+f = h5py.File("swmr.h5", 'r', libver='latest', swmr=True)
+f.keys()

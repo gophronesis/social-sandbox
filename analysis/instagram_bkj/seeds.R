@@ -25,9 +25,14 @@ saveRDS(x, 'scratch/x.rds')
 # < 100 meters
 # > 95 percentile random image similarity
 
-res          <- close_in_time(x)
+system.time({
+    res          <- close_in_time(x)
+    cands_seq    <- 1:length(res)
+    cands        <- llply(cands_seq, close_in_space, .parallel = TRUE)
+    names(cands) <- cands_seq
+})
 
-cands_seq    <- 1:nrow(x)
+cands_seq    <- 1:length(res)
 cands        <- llply(cands_seq, close_in_space, .parallel = TRUE)
 names(cands) <- cands_seq
 saveRDS(cands, 'scratch/cands_30s_100m.rds')
@@ -39,8 +44,9 @@ mcands_dates <- x$date[as.numeric(names(mcands))]
 sel <- mcands_dates > '2015-04-25' & mcands_dates < '2015-05-02'
 
 ic  <- mcands[sel]
-ic  <- llply(ic, function(inds) x$id[inds])
+ic  <- llply(ic, function(inds) x$id[inds], .parallel = TRUE)
 names(ic) <- x$id[as.numeric(names(ic))]
+
 
 # --
 # Featurize images
@@ -114,6 +120,8 @@ lfin_all <- ldply(img_sims[sapply(img_sims, length) > 0], function(x) {
 }, .parallel = TRUE)
 names(lfin_all) <- c('source', 'target', 'sim')
 lfin_all <- lfin_all[lfin_all$source != lfin_all$target,]
+saveRDS(lfin_all, 'scratch/lfin_all.rds')
+
 
 lfin       <- lfin_all[lfin_all$sim > img_thresh,]
 levs       <- unique(c(lfin[['source']], lfin[['target']]))
