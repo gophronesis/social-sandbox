@@ -7,13 +7,6 @@ from pprint import pprint
 from time import time
 from scipy.spatial import distance as sc_dist
 
-
-def latlon2meters(p1, N_METERS = 100.0):
-    STEP = .00001
-    DIST = STEP * N_METERS / (vincenty(p1[['lon', 'lat']], p1[['lon', 'lat']] + STEP).meters)
-    return DIST
-
-
 def close_sort(x, dist):
     length = len(x)
     lead   = 0
@@ -70,7 +63,7 @@ config = {
     'DIST' : 100    
 }
 
-x    = pd.read_csv('/Users/BenJohnson/projects/social-sandbox/scratch/x.csv').sort('time')
+x    = pd.read_csv('/Users/BenJohnson/projects/social-sandbox/scratch/austin.csv').sort('time')
 imgs = h5py.File('/Users/BenJohnson/projects/social-sandbox/images/baltimore_features.h5', 'r')
 
 ids  = np.array(x['id'])
@@ -157,3 +150,5 @@ def cc(lfin):
         'id_to_cluster' : id_to_cluster, 
         'cluster_to_id' : cluster_to_id
     }
+
+comps = cc(lfin)
