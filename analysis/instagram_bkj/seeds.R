@@ -36,17 +36,20 @@ cands_seq    <- 1:length(res)
 cands        <- llply(cands_seq, close_in_space, .parallel = TRUE)
 names(cands) <- cands_seq
 saveRDS(cands, 'scratch/cands_30s_100m.rds')
-mcands <- cands[sapply(cands, length) > 1]
+mcands <- cands #[sapply(cands, length) > 1]
 
 # --
 # Subset by date for development
 mcands_dates <- x$date[as.numeric(names(mcands))]
 sel <- mcands_dates > '2015-04-25' & mcands_dates < '2015-05-02'
 
-ic  <- mcands[sel]
-ic  <- llply(ic, function(inds) x$id[inds], .parallel = TRUE)
+
+
+ic <- mcands[sel]
+ic <- llply(ic, function(inds) xid[inds])
 names(ic) <- x$id[as.numeric(names(ic))]
 
+table(sapply(ic, length))
 
 # --
 # Featurize images
@@ -117,7 +120,7 @@ open_imgs(ids)
 
 lfin_all <- ldply(img_sims[sapply(img_sims, length) > 0], function(x) {
     data.frame(id = names(x), img_sim = x)
-}, .parallel = TRUE)
+}, .parallel = FALSE)
 names(lfin_all) <- c('source', 'target', 'sim')
 lfin_all <- lfin_all[lfin_all$source != lfin_all$target,]
 saveRDS(lfin_all, 'scratch/lfin_all.rds')
@@ -126,7 +129,7 @@ saveRDS(lfin_all, 'scratch/lfin_all.rds')
 lfin       <- lfin_all[lfin_all$sim > img_thresh,]
 levs       <- unique(c(lfin[['source']], lfin[['target']]))
 lfin$hub   <- as.numeric(factor(lfin[['source']], levels = levs))
-lfin$spoke <- as.numeric(factor(lfin[['target']],   levels = levs))
+lfin$spoke <- as.numeric(factor(lfin[['target']], levels = levs))
 
 # two directional (for historical)
 ccomps <- function(lfin, levs, backwards_only = FALSE) {

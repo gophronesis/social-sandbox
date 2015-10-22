@@ -22,6 +22,9 @@ lfin_date <- x$date[match(lfin_all[['source']], x$id)]
 
 lsel    <- lfin_date > '2015-04-25' & lfin_date < '2015-04-26'
 tmp     <- lfin_all[lsel,]
+
+tmp <- read.csv('~/projects/software/grapher/examples/preakness.csv', as.is = T)
+tmp <- tmp[,-1]
 tmplevs <- unique(c(tmp[['source']], tmp[['target']]))
 
 tmp$source <- as.numeric(factor(tmp[['source']], tmplevs)) - 1 
@@ -56,5 +59,5 @@ cat(jsonlite::toJSON(list(
         ),
         links = tmp[,c('source', 'target', 'sim')]
     )
-)), file = '~/projects/software/grapher/examples/test.json')
+)), file = '~/projects/software/grapher/examples/preakness.json')
 

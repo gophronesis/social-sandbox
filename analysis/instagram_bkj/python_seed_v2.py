@@ -1,9 +1,12 @@
 import h5py
-from time import time
+import funcy as fnc
 import numpy as np
 import pandas as pd
 import dask.bag as db
+from pprint import pprint
+from time import time
 from scipy.spatial import distance as sc_dist
+
 
 def latlon2meters(p1, N_METERS = 100.0):
     STEP = .00001
@@ -36,18 +39,9 @@ def close_in_space(p, dist):
     
     return ids[sel[d <= dist]]
 
-# # This is more accurate, but horribly slow
-# def close_in_space(p, dist):
-#     sel = np.arange(p[1], p[0] + 1)
-#     tmp = f[sel]
-#     v1  = tmp[-1]
-#     return ids[sel[np.array(map(lambda v: vincenty(v, v1).meters <= dist, tmp))]]
-
-
-
-def smartget(f, i):
+def smartget(h, i):
     try:
-        return f[i].value
+        return h[i].value
     except:
         return None
 
@@ -59,123 +53,107 @@ def _img_sim(vec, tvec):
         return None
 
 
-def img_sim(z):
+def img_sim(imgs, z):
     cand = z[:-1]
     targ = z[-1]
-    tvec = smartget(imgs, targ)
+    tvec = imgs.get(targ, None)
     if type(tvec) != type(None):
-        cvec = map(lambda x: smartget(imgs, x), cand)
+        cvec = map(lambda x: imgs.get(x), cand)
         return (targ, zip(cand, map(lambda x: _img_sim(x, tvec), cvec)))
     else:
         return(targ, [])
 
 # --
 
+config = {
+    'TIME' : 30 * 60,
+    'DIST' : 100    
+}
+
+x    = pd.read_csv('/Users/BenJohnson/projects/social-sandbox/scratch/x.csv').sort('time')
 imgs = h5py.File('/Users/BenJohnson/projects/social-sandbox/images/baltimore_features.h5', 'r')
 
-x   = pd.read_csv('/Users/BenJohnson/projects/social-sandbox/scratch/x.csv')
-x   = x.sort('time')
-ids = np.array(x['id'])
+ids  = np.array(x['id'])
+frad = np.array(x[['lat', 'lon']]) * np.pi / 180
 
-f    = np.array(x[['lat', 'lon']])
-frad = f * np.pi / 180
-
-DIST  = 100
-
-T    = time()
 
 # Close in time (can't parallelize)
-# Same as in R
-t   = time()
-cit = list(close_sort(list(x['time']), 30 * 60))
-time() - t
+# Same as in R (1 sec)
+cit = list(close_sort(list(x['time']), config['TIME']))
 
-# Close in space (not work parallelize)
-t   = time()
-cis = map(lambda x: close_in_space(x, DIST), cit)
-cis = map(list, cis)
-time() - t
+# Close in space (haven't parallelized)
+# Same as in R (25 secs)
+cis = map(lambda x: list(close_in_space(x, config['DIST'])), cit)
 
-pd.Series(map(lambda x: len(x), cis)).value_counts()
-sum(map(lambda x: len(x) == 1, cis))
 
-# --
-# from multiprocessing import Pool
-# pool = Pool(8)
+# Close in image space
+# Good enough for now
 
-# tmp = []
-# for i in range(20):
-#     print i
-#     start = i * 100000
-#     stop  = (i + 1) * 100000
+ncis       = np.array(cis)
+length     = len(ncis)
+CHUNK_SIZE = 50000
+lfin       = []
+
+# TODO -- parallel reads on HDF5
+for i in range(200):
+    print i
+    t = time()
     
-#     t    = time()
-#     tmp += pool.map(img_sim, cis[start:stop])
-#     time() - t
+    sel     = np.arange(i * CHUNK_SIZE, min(length, (i + 1) * CHUNK_SIZE))
+    cis_sub = ncis[sel]
+    print 'starting ::: %f' % (time() - t)
+    
+    if len(cis_sub) > 0:
+        uids  = fnc.distinct(fnc.flatten(cis_sub))
+        chunk = dict(map(lambda i: (i, smartget(imgs, i)), uids))
+        print 'loading ::: %f' % (time() - t)
+            
+        cis_sub_ = db.from_sequence(cis_sub)
+        lfin += cis_sub_.map(lambda x: img_sim(chunk, x)).compute()
+        
+    print 'total ::: %f' % (time() - t)
 
 # --
-
-# Images
-cis_ = db.from_sequence(cis)
-lfin = cis_.map(img_sim).compute()
-print 'total time :: %f' % (time() - T)
-
-lfin
-
-# Adjacency matrix
+# Output
 adj = db.from_sequence(lfin)\
     .map(lambda x: [(x[0], y[0], y[1]) for y in x[1]])\
     .fold(lambda a, b: a + b)\
     .compute()
 
-adj_ = pd.DataFrame(adj, columns = ('source', 'target', 'sim'))
-adj_.to_csv('../scratch/adj_.csv')
+adj_df= pd.DataFrame(adj, columns = ('source', 'target', 'sim'))
+adj_df.to_csv('scratch/adj_.csv')
 
-
+# --
 # Connected components
-nt_nodes = filter(lambda x: len(x[1]) > 0, lfin)
 
-new_c         = 1
-id_to_cluster = {}
-cluster_to_id = {}
-for n in nt_nodes:
-    source  = n[0]
-    targets = [t[0] for t in n[1]]
-    
-    id_to_cluster[source] = new_c
-    cluster_to_id[new_c]  = [source]
-    
-    neib_clusters = set()
-    for t in targets:
-        c = id_to_cluster.get(t)
-        if c:
-            neib_clusters.update([c])
-    
-    for c in neib_clusters:
-        for neib in cluster_to_id[c]:
-            id_to_cluster[neib]  = new_c
-        cluster_to_id[new_c] += cluster_to_id[c]
-        del cluster_to_id[c]
+
+def cc(lfin):
+    nt_nodes      = filter(lambda x: len(x[1]) > 0, lfin)
+    new_c         = 1
+    id_to_cluster = {}
+    cluster_to_id = {}
+    for n in nt_nodes:
+        source  = n[0]
+        targets = [t[0] for t in n[1]]
         
-    new_c += 1
-
-sorted(map(len, cluster_to_id.values()))
-pd.Series(id_to_cluster.values()).value_counts()
-
-# df = pd.DataFrame([{"id" : nt_nodes[0][0], "cluster" : 0}])
-# i = 0
-# for l in lfin:
-#     if len(l[1]) > 0:
-#         source  = l[0]
-#         targets = [t[0] for t in l[1]]
-#         sel     = ( df['id'] == np.array(targets) )
-#         if sum(sel) > 0:
-#             print df[sel]['cluster']
-#             break
-#         else:
-#             df.append({'id' : source, 'cluster' : i})
-#     else:
-#         df.append({'id' : source, 'cluster' : i})
+        id_to_cluster[source] = new_c
+        cluster_to_id[new_c]  = [source]
+        
+        neib_clusters = set()
+        for t in targets:
+            c = id_to_cluster.get(t)
+            if c:
+                neib_clusters.update([c])
+        
+        for c in neib_clusters:
+            for neib in cluster_to_id[c]:
+                id_to_cluster[neib]  = new_c
+            cluster_to_id[new_c] += cluster_to_id[c]
+            del cluster_to_id[c]
+            
+        new_c += 1
     
-#     i += 1
-
+    return {
+        'id_to_cluster' : id_to_cluster, 
+        'cluster_to_id' : cluster_to_id
+    }
